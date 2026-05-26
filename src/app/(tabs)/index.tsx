@@ -42,8 +42,14 @@ export default function ConnectScreen() {
 
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-      if (searchOpen) { searchRef.current?.dismiss(); return true; }
-      if (sheetOpen) { sheetRef.current?.dismiss(); return true; }
+      if (searchOpen) {
+        searchRef.current?.dismiss();
+        return true;
+      }
+      if (sheetOpen) {
+        sheetRef.current?.dismiss();
+        return true;
+      }
       return false;
     });
     return () => sub.remove();
@@ -117,13 +123,15 @@ export default function ConnectScreen() {
         edges={["top", "left", "right"]}
         style={[styles.container, { backgroundColor: theme.colors.background }]}
       >
-        <View style={[styles.header, { borderBottomColor: theme.colors.outline }]}>
+        <View
+          style={[styles.header, { borderBottomColor: theme.colors.outline }]}
+        >
           <View style={styles.headerLogoWrap}>
             <Image
-              source={require("../../../assets/images/icon-tp.png")}
-              style={styles.headerLogo}
               contentFit="contain"
+              style={styles.headerLogo}
               accessibilityLabel="cy-tty"
+              source={require("../../../assets/images/icon-tp.png")}
             />
           </View>
           <IconButton
@@ -151,7 +159,10 @@ export default function ConnectScreen() {
             <View style={styles.sectionHeader}>
               <Text
                 variant="titleSmall"
-                style={[styles.sectionTitle, { color: theme.colors.onSurfaceVariant }]}
+                style={[
+                  styles.sectionTitle,
+                  { color: theme.colors.onSurfaceVariant },
+                ]}
               >
                 DEVICES ON NETWORK
               </Text>
@@ -167,7 +178,10 @@ export default function ConnectScreen() {
             {!scanning && hosts.length === 0 && (
               <Text
                 variant="bodySmall"
-                style={[styles.emptyHint, { color: theme.colors.onSurfaceVariant }]}
+                style={[
+                  styles.emptyHint,
+                  { color: theme.colors.onSurfaceVariant },
+                ]}
               >
                 No SSH devices found on this network.
               </Text>
@@ -180,7 +194,11 @@ export default function ConnectScreen() {
           <View style={styles.section}>
             <Text
               variant="titleSmall"
-              style={[styles.sectionTitle, styles.sectionTitleStandalone, { color: theme.colors.onSurfaceVariant }]}
+              style={[
+                styles.sectionTitle,
+                styles.sectionTitleStandalone,
+                { color: theme.colors.onSurfaceVariant },
+              ]}
             >
               RECENT CONNECTIONS
             </Text>
@@ -188,7 +206,10 @@ export default function ConnectScreen() {
             {profiles.length === 0 && (
               <Text
                 variant="bodySmall"
-                style={[styles.emptyHint, { color: theme.colors.onSurfaceVariant }]}
+                style={[
+                  styles.emptyHint,
+                  { color: theme.colors.onSurfaceVariant },
+                ]}
               >
                 Tap + to add your first connection.
               </Text>
@@ -245,13 +266,15 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 20,
     paddingVertical: 8,
+    paddingHorizontal: 20,
+    justifyContent: "space-between",
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   headerLogoWrap: {
     flex: 1,
-    alignItems: "flex-start",
+    maxWidth: 80,
+    marginLeft: -20,
   },
   headerLogo: {
     width: 80,

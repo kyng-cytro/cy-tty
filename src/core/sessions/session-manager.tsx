@@ -11,7 +11,13 @@ import { View, StyleSheet } from 'react-native';
 
 import { useSshSession, type SshSessionStatus } from '@/hooks/use-ssh-session';
 import { useTerminal } from '@/hooks/use-terminal';
-import { useTerminalSize, DEFAULT_CELL_WIDTH, DEFAULT_CELL_HEIGHT } from '@/hooks/use-terminal-size';
+import {
+  useTerminalSize,
+  DEFAULT_CELL_WIDTH,
+  DEFAULT_CELL_HEIGHT,
+  CONTENT_PADDING_TOP,
+  CONTENT_PADDING_H,
+} from '@/hooks/use-terminal-size';
 import type { TerminalState } from '@/core/terminal/types';
 import type { SshProfile } from '@/core/profiles/types';
 
@@ -58,6 +64,8 @@ function SessionNode({ id, profile, onUpdate }: SessionNodeProps) {
   const { cols, rows } = useTerminalSize({
     cellWidth: cellSize.width,
     cellHeight: cellSize.height,
+    paddingTop: CONTENT_PADDING_TOP,
+    paddingH: CONTENT_PADDING_H,
   });
 
   const { state, processBytes } = useTerminal({ cols, rows });

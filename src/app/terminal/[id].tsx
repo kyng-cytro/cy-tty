@@ -36,6 +36,7 @@ import {
 } from "@/components/terminal/terminal-session";
 import { useSessionManager } from "@/core/sessions/session-manager";
 import { useTerminalPreferences } from "@/core/theme/preferences-context";
+import { CONTENT_PADDING_H, CONTENT_PADDING_TOP } from "@/hooks/use-terminal-size";
 
 // Ctrl: a-z → \x01-\x1a; a handful of punctuation; arrow/tab escape sequences.
 // Alt: prepend ESC to any single char or remap arrow sequences.
@@ -295,14 +296,28 @@ export default function TerminalScreen() {
 
   const headerOpacity = useSharedValue(1);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const headerShown = useRef(true);
 
   const showHeader = useCallback(() => {
+    headerShown.current = true;
     headerOpacity.value = withTiming(1, { duration: 150 });
     if (hideTimer.current) clearTimeout(hideTimer.current);
     hideTimer.current = setTimeout(() => {
       headerOpacity.value = withTiming(0, { duration: 600 });
+      headerShown.current = false;
     }, 3000);
   }, [headerOpacity]);
+
+  const hideHeader = useCallback(() => {
+    headerShown.current = false;
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    headerOpacity.value = withTiming(0, { duration: 300 });
+  }, [headerOpacity]);
+
+  const toggleHeader = useCallback(() => {
+    if (headerShown.current) hideHeader();
+    else showHeader();
+  }, [showHeader, hideHeader]);
 
   useEffect(() => {
     showHeader();
@@ -382,14 +397,14 @@ export default function TerminalScreen() {
             <Pressable
               style={styles.flex}
               onPress={() => {
-                showHeader();
+                toggleHeader();
                 showKeyboard();
               }}
             >
               <TerminalCanvas
                 state={session.terminalState}
                 onCellSize={session.resize}
-                style={styles.flex}
+                style={[styles.flex, styles.canvasPadding]}
               />
             </Pressable>
           </GestureDetector>
@@ -411,6 +426,10 @@ export default function TerminalScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   flex: { flex: 1 },
+  canvasPadding: {
+    paddingTop: CONTENT_PADDING_TOP,
+    paddingHorizontal: CONTENT_PADDING_H,
+  },
   overlay: {
     ...StyleSheet.absoluteFill,
     alignItems: "center",
