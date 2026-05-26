@@ -5,6 +5,7 @@ import android.graphics.Rect
 import android.os.Handler
 import android.os.Looper
 import android.text.InputType
+import android.util.Log
 import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.BaseInputConnection
@@ -14,6 +15,8 @@ import android.view.inputmethod.InputMethodManager
 import expo.modules.kotlin.AppContext
 import expo.modules.kotlin.viewevent.EventDispatcher
 import expo.modules.kotlin.views.ExpoView
+
+private const val TAG = "CyTTY-Keyboard"
 
 private const val ESC = ""
 
@@ -35,14 +38,18 @@ class TerminalKeyboardView(context: Context, appContext: AppContext) : ExpoView(
   // ── Public API (called from Expo prop setter) ──────────────────────────────
 
   fun setTerminalFocused(focused: Boolean) {
+    Log.d(TAG, "setTerminalFocused($focused) called on thread=${Thread.currentThread().name}")
     mainHandler.post {
+      Log.d(TAG, "setTerminalFocused($focused) executing on main thread, wantKeyboard=$wantKeyboard")
       wantKeyboard = focused
       if (focused) {
-        requestFocus()
+        val focusResult = requestFocus()
+        Log.d(TAG, "requestFocus() returned=$focusResult  isFocused=$isFocused  isAttachedToWindow=$isAttachedToWindow  w=${width}x${height}")
         showIme()
-        // Belt-and-suspenders retry: sometimes the first call fires before the
-        // IME service is ready (e.g. screen just became visible)
-        mainHandler.postDelayed({ if (wantKeyboard) showIme() }, 300)
+        mainHandler.postDelayed({
+          Log.d(TAG, "postDelayed retry: wantKeyboard=$wantKeyboard  isFocused=$isFocused")
+          if (wantKeyboard) showIme()
+        }, 300)
       } else {
         hideIme()
         clearFocus()
@@ -65,13 +72,16 @@ class TerminalKeyboardView(context: Context, appContext: AppContext) : ExpoView(
   private fun showIme() {
     val m = imm()
     val shown = m.showSoftInput(this, InputMethodManager.SHOW_FORCED)
+    Log.d(TAG, "showSoftInput() returned=$shown  isFocused=$isFocused  windowToken=$windowToken")
     if (!shown) {
+      Log.d(TAG, "showSoftInput failed — falling back to toggleSoftInput")
       @Suppress("DEPRECATION")
       m.toggleSoftInput(InputMethodManager.SHOW_FORCED, InputMethodManager.HIDE_IMPLICIT_ONLY)
     }
   }
 
   private fun hideIme() {
+    Log.d(TAG, "hideIme()")
     imm().hideSoftInputFromWindow(windowToken, 0)
   }
 
@@ -84,18 +94,20 @@ class TerminalKeyboardView(context: Context, appContext: AppContext) : ExpoView(
    */
   override fun onFocusChanged(gainFocus: Boolean, direction: Int, previouslyFocusedRect: Rect?) {
     super.onFocusChanged(gainFocus, direction, previouslyFocusedRect)
+    Log.d(TAG, "onFocusChanged(gainFocus=$gainFocus)  wantKeyboard=$wantKeyboard")
     if (gainFocus && wantKeyboard) showIme()
+  }
+
+  override fun onCreateInputConnection(outAttrs: EditorInfo): InputConnection {
+    Log.d(TAG, "onCreateInputConnection() called — IME is connecting")
+    outAttrs.inputType = InputType.TYPE_NULL
+    outAttrs.imeOptions = EditorInfo.IME_FLAG_NO_FULLSCREEN or EditorInfo.IME_FLAG_NO_EXTRACT_UI
+    return TerminalInputConnection(this)
   }
 
   // ── InputConnection ────────────────────────────────────────────────────────
 
   override fun onCheckIsTextEditor(): Boolean = true
-
-  override fun onCreateInputConnection(outAttrs: EditorInfo): InputConnection {
-    outAttrs.inputType = InputType.TYPE_NULL
-    outAttrs.imeOptions = EditorInfo.IME_FLAG_NO_FULLSCREEN or EditorInfo.IME_FLAG_NO_EXTRACT_UI
-    return TerminalInputConnection(this)
-  }
 
   private fun dispatchInput(data: String) {
     onInput(mapOf("data" to data))
