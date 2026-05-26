@@ -68,9 +68,14 @@ function SessionRow({ session }: { session: LiveSession }) {
           <View style={[styles.dot, { backgroundColor: dotColor }]} />
 
           <View style={styles.info}>
-            <Text variant="titleSmall" numberOfLines={1} style={{ color: theme.colors.onSurface }}>
-              {session.profile.label}
-            </Text>
+            <View style={styles.labelRow}>
+              <Text variant="titleSmall" numberOfLines={1} style={[styles.labelText, { color: theme.colors.onSurface }]}>
+                {session.profile.label}
+              </Text>
+              <Text variant="labelSmall" style={[styles.sessionTag, { color: theme.colors.onSurfaceVariant }]}>
+                #{session.id.slice(-4)}
+              </Text>
+            </View>
             <Text variant="bodySmall" numberOfLines={1} style={{ color: theme.colors.onSurfaceVariant }}>
               {session.profile.username ? `${session.profile.username}@` : ""}
               {session.profile.host}:{session.profile.port}
@@ -183,5 +188,17 @@ const styles = StyleSheet.create({
   info: {
     flex: 1,
     gap: 2,
+  },
+  labelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  labelText: {
+    flexShrink: 1,
+  },
+  sessionTag: {
+    opacity: 0.5,
+    fontVariant: ["tabular-nums"],
   },
 });
