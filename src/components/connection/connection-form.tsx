@@ -1,23 +1,7 @@
-/**
- * ConnectionForm
- *
- * Material You form for entering SSH connection details.
- * On submit, navigates to the terminal screen passing credentials as
- * route params (expo-router query string — encoded by the framework).
- *
- * Fields:
- *   • Host      — hostname or IP address
- *   • Port      — defaults to 22
- *   • Username
- *   • Password  — secureTextEntry
- */
-
 import { useState } from 'react';
 import { StyleSheet, View, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { Button, HelperText, Text, TextInput, useTheme } from 'react-native-paper';
 import { router } from 'expo-router';
-
-// ── Validation ─────────────────────────────────────────────────────────────
 
 function validate(host: string, port: string, username: string, password: string) {
   const errors: Record<string, string> = {};
@@ -30,8 +14,6 @@ function validate(host: string, port: string, username: string, password: string
   if (!password) errors.password = 'Password is required';
   return errors;
 }
-
-// ── Component ──────────────────────────────────────────────────────────────
 
 export function ConnectionForm() {
   const theme = useTheme();
@@ -81,7 +63,6 @@ export function ConnectionForm() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.card}>
-          {/* ── Title ─────────────────────────────────────────────────────── */}
           <Text
             variant="headlineSmall"
             style={[styles.title, { color: theme.colors.onSurface }]}
@@ -89,7 +70,6 @@ export function ConnectionForm() {
             New Connection
           </Text>
 
-          {/* ── Host ──────────────────────────────────────────────────────── */}
           <TextInput
             label="Host"
             value={host}
@@ -108,7 +88,6 @@ export function ConnectionForm() {
             {errors.host}
           </HelperText>
 
-          {/* ── Port ──────────────────────────────────────────────────────── */}
           <TextInput
             label="Port"
             value={port}
@@ -125,7 +104,6 @@ export function ConnectionForm() {
             {errors.port}
           </HelperText>
 
-          {/* ── Username ──────────────────────────────────────────────────── */}
           <TextInput
             label="Username"
             value={username}
@@ -143,7 +121,6 @@ export function ConnectionForm() {
             {errors.username}
           </HelperText>
 
-          {/* ── Password ──────────────────────────────────────────────────── */}
           <TextInput
             label="Password"
             value={password}
@@ -167,7 +144,6 @@ export function ConnectionForm() {
             {errors.password}
           </HelperText>
 
-          {/* ── Connect button ────────────────────────────────────────────── */}
           <Button
             mode="contained"
             onPress={handleConnect}
@@ -182,8 +158,6 @@ export function ConnectionForm() {
     </KeyboardAvoidingView>
   );
 }
-
-// ── Styles ─────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   kav: {
@@ -201,9 +175,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     fontWeight: '700',
   },
-  input: {
-    // Width set by parent padding
-  },
+  input: {},
   button: {
     marginTop: 16,
     borderRadius: 12,

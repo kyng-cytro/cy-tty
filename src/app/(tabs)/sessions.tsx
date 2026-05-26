@@ -1,14 +1,14 @@
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { router } from "expo-router";
-import { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { Badge, Card, Menu, Text, useTheme } from "react-native-paper";
+import { Badge, Card, Text, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
   useSessionManager,
   type LiveSession,
 } from "@/core/sessions/session-manager";
+import { SwipeableRow } from "@/components/common/swipeable-row";
 import type { SshSessionStatus } from "@/hooks/use-ssh-session";
 
 function useStatusColors(): Record<SshSessionStatus, string> {
@@ -34,8 +34,6 @@ function SessionRow({ session }: { session: LiveSession }) {
   const theme = useTheme();
   const { destroy, create } = useSessionManager();
   const statusColors = useStatusColors();
-  const [menuVisible, setMenuVisible] = useState(false);
-  const [menuAnchor, setMenuAnchor] = useState({ x: 0, y: 0 });
 
   const dotColor = statusColors[session.status];
   const canReconnect =
@@ -54,62 +52,50 @@ function SessionRow({ session }: { session: LiveSession }) {
   };
 
   return (
-    <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-      <Pressable
-        onPress={handlePress}
-        onLongPress={(e) => {
-          setMenuAnchor({ x: e.nativeEvent.pageX, y: e.nativeEvent.pageY });
-          setMenuVisible(true);
-        }}
-        android_ripple={{ color: theme.colors.primary + "22", borderless: false }}
-        style={styles.pressable}
-      >
-        <View style={[styles.dot, { backgroundColor: dotColor }]} />
+    <SwipeableRow
+      style={styles.swipeWrapper}
+      left={{
+        onAction: () => destroy(session.id),
+        icon: "close-circle-outline",
+        confirm: {
+          title: "End Session",
+          message: `End the session for "${session.profile.label}"?`,
+          label: "End",
+        },
+      }}
+    >
+      <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
+        <Pressable
+          onPress={handlePress}
+          android_ripple={{ color: theme.colors.primary + "22", borderless: false }}
+          style={styles.pressable}
+        >
+          <View style={[styles.dot, { backgroundColor: dotColor }]} />
 
-        <View style={styles.info}>
-          <Text variant="titleSmall" numberOfLines={1} style={{ color: theme.colors.onSurface }}>
-            {session.profile.label}
-          </Text>
-          <Text variant="bodySmall" numberOfLines={1} style={{ color: theme.colors.onSurfaceVariant }}>
-            {session.profile.username ? `${session.profile.username}@` : ""}
-            {session.profile.host}:{session.profile.port}
-          </Text>
-          <Text variant="labelSmall" style={{ color: dotColor, opacity: 0.9 }}>
-            {STATUS_LABEL[session.status]}
-            {session.status === "connected" && `  ·  ${session.cols}×${session.rows}`}
-            {session.status === "error" && session.error ? `  —  ${session.error}` : ""}
-          </Text>
-        </View>
+          <View style={styles.info}>
+            <Text variant="titleSmall" numberOfLines={1} style={{ color: theme.colors.onSurface }}>
+              {session.profile.label}
+            </Text>
+            <Text variant="bodySmall" numberOfLines={1} style={{ color: theme.colors.onSurfaceVariant }}>
+              {session.profile.username ? `${session.profile.username}@` : ""}
+              {session.profile.host}:{session.profile.port}
+            </Text>
+            <Text variant="labelSmall" style={{ color: dotColor, opacity: 0.9 }}>
+              {STATUS_LABEL[session.status]}
+              {session.status === "connected" && `  ·  ${session.cols}×${session.rows}`}
+              {session.status === "error" && session.error ? `  —  ${session.error}` : ""}
+            </Text>
+          </View>
 
-        <MaterialCommunityIcons
-          name="chevron-right"
-          size={20}
-          color={theme.colors.onSurfaceVariant}
-          style={{ opacity: 0.4 }}
-        />
-
-      </Pressable>
-
-      <Menu
-        visible={menuVisible}
-        onDismiss={() => setMenuVisible(false)}
-        anchor={menuAnchor}
-      >
-        {canReconnect && (
-          <Menu.Item
-            leadingIcon="refresh"
-            onPress={() => { setMenuVisible(false); handlePress(); }}
-            title="Reconnect"
+          <MaterialCommunityIcons
+            name="chevron-right"
+            size={20}
+            color={theme.colors.onSurfaceVariant}
+            style={{ opacity: 0.4 }}
           />
-        )}
-        <Menu.Item
-          leadingIcon="close"
-          onPress={() => { setMenuVisible(false); destroy(session.id); }}
-          title="Disconnect"
-          titleStyle={{ color: theme.colors.error }}
-        />
-      </Menu>
-    </Card>
+        </Pressable>
+      </Card>
+    </SwipeableRow>
   );
 }
 
@@ -177,9 +163,11 @@ const styles = StyleSheet.create({
     marginTop: 8,
     opacity: 0.7,
   },
-  card: {
+  swipeWrapper: {
     marginHorizontal: 16,
     marginVertical: 6,
+  },
+  card: {
     borderRadius: 12,
     overflow: "hidden",
   },

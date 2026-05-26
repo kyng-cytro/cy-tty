@@ -61,7 +61,6 @@ export function TerminalPreferencesProvider({ children }: { children: ReactNode 
         if (fid) setFontIdState(fid);
         if (fsz) setFontSizeState(Number(fsz));
       } catch {
-        // use defaults
       } finally {
         setLoaded(true);
       }

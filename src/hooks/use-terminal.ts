@@ -34,7 +34,6 @@ export function useTerminal({ cols, rows }: UseTerminalOptions): UseTerminalResu
       unsubscribe();
       GhosttyVt.destroy(h);
     };
-    // Intentionally empty deps — terminal is created once per mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

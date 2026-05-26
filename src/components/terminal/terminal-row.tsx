@@ -92,8 +92,6 @@ export const TerminalRow = memo(function TerminalRow({
 
   const { bgRects, glyphRuns } = useMemo(
     () => buildRowData(cells, rowY, cellWidth, cellHeight, baseline, font, fgRgb, bgRgb, themePalette),
-    // cells reference only changes when this row is dirty (see applyDelta)
-    // fgRgb/bgRgb/themePalette are stable primitives / stable array refs from useMemo
     [cells, rowY, cellWidth, cellHeight, baseline, font, fgRgb, bgRgb, themePalette],
   );
 
