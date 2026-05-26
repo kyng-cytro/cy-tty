@@ -118,12 +118,14 @@ export default function ConnectScreen() {
         style={[styles.container, { backgroundColor: theme.colors.background }]}
       >
         <View style={[styles.header, { borderBottomColor: theme.colors.outline }]}>
-          <Image
-            source={require("../../../assets/images/icon-tp.png")}
-            style={styles.headerLogo}
-            contentFit="contain"
-            accessibilityLabel="cy-tty"
-          />
+          <View style={styles.headerLogoWrap}>
+            <Image
+              source={require("../../../assets/images/icon-tp.png")}
+              style={styles.headerLogo}
+              contentFit="contain"
+              accessibilityLabel="cy-tty"
+            />
+          </View>
           <IconButton
             icon="magnify"
             size={22}
@@ -247,9 +249,13 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  headerLogo: {
+  headerLogoWrap: {
     flex: 1,
-    height: 36,
+    alignItems: "flex-start",
+  },
+  headerLogo: {
+    width: 80,
+    height: 32,
   },
   progressBar: { height: 2 },
   scroll: { paddingBottom: 96 },

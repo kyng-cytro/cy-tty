@@ -1,6 +1,9 @@
 package expo.modules.terminalkeyboard
 
 import android.content.Context
+import android.graphics.Rect
+import android.os.Handler
+import android.os.Looper
 import android.text.InputType
 import android.view.KeyEvent
 import android.view.View
@@ -9,38 +12,82 @@ import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.view.inputmethod.InputMethodManager
 import expo.modules.kotlin.AppContext
-import expo.modules.kotlin.views.ExpoView
 import expo.modules.kotlin.viewevent.EventDispatcher
+import expo.modules.kotlin.views.ExpoView
 
-private const val ESC = ""
+private const val ESC = ""
 
 class TerminalKeyboardView(context: Context, appContext: AppContext) : ExpoView(context, appContext) {
 
   val onInput by EventDispatcher<Map<String, Any>>()
 
+  private val mainHandler = Handler(Looper.getMainLooper())
+  private var wantKeyboard = false
+
   init {
     isFocusable = true
     isFocusableInTouchMode = true
-    // Minimum 1×1 px so Android considers the view "visible" and allows focus
+    // Non-zero so Android's window manager considers the view layout-visible
     minimumWidth = 1
     minimumHeight = 1
   }
 
+  // ── Public API (called from Expo prop setter) ──────────────────────────────
+
   fun setTerminalFocused(focused: Boolean) {
-    if (focused) {
-      requestFocus()
-      val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-      // SHOW_FORCED works even for off-screen / zero-size views
-      post { imm.showSoftInput(this, InputMethodManager.SHOW_FORCED) }
-      // Belt-and-suspenders: retry once after 150 ms in case the first attempt
-      // fires before the window is fully attached (e.g. on first mount)
-      postDelayed({ if (isFocused) imm.showSoftInput(this, InputMethodManager.SHOW_FORCED) }, 150)
-    } else {
-      val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-      imm.hideSoftInputFromWindow(windowToken, 0)
-      clearFocus()
+    mainHandler.post {
+      wantKeyboard = focused
+      if (focused) {
+        requestFocus()
+        showIme()
+        // Belt-and-suspenders retry: sometimes the first call fires before the
+        // IME service is ready (e.g. screen just became visible)
+        mainHandler.postDelayed({ if (wantKeyboard) showIme() }, 300)
+      } else {
+        hideIme()
+        clearFocus()
+      }
     }
   }
+
+  // ── IME helpers ────────────────────────────────────────────────────────────
+
+  private fun imm() =
+    context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+
+  /**
+   * Show the soft keyboard.
+   * SHOW_FORCED bypasses the "implicit" heuristic that suppresses the IME
+   * when the view has no size or is not the "expected" text editor.
+   * We fall back to toggleSoftInput if the direct call returns false, which
+   * can happen on some OEM ROMs where showSoftInput is gated on window focus.
+   */
+  private fun showIme() {
+    val m = imm()
+    val shown = m.showSoftInput(this, InputMethodManager.SHOW_FORCED)
+    if (!shown) {
+      @Suppress("DEPRECATION")
+      m.toggleSoftInput(InputMethodManager.SHOW_FORCED, InputMethodManager.HIDE_IMPLICIT_ONLY)
+    }
+  }
+
+  private fun hideIme() {
+    imm().hideSoftInputFromWindow(windowToken, 0)
+  }
+
+  // ── Focus changes ──────────────────────────────────────────────────────────
+
+  /**
+   * When the view actually receives focus (possibly asynchronously after
+   * requestFocus()), try showing the keyboard again — this is the most
+   * reliable trigger point on Android.
+   */
+  override fun onFocusChanged(gainFocus: Boolean, direction: Int, previouslyFocusedRect: Rect?) {
+    super.onFocusChanged(gainFocus, direction, previouslyFocusedRect)
+    if (gainFocus && wantKeyboard) showIme()
+  }
+
+  // ── InputConnection ────────────────────────────────────────────────────────
 
   override fun onCheckIsTextEditor(): Boolean = true
 
@@ -63,7 +110,7 @@ class TerminalKeyboardView(context: Context, appContext: AppContext) : ExpoView(
     }
 
     override fun deleteSurroundingText(beforeLength: Int, afterLength: Int): Boolean {
-      repeat(beforeLength) { dispatchInput("") }
+      repeat(beforeLength) { dispatchInput("") }
       return true
     }
 
@@ -78,6 +125,8 @@ class TerminalKeyboardView(context: Context, appContext: AppContext) : ExpoView(
       return super.sendKeyEvent(event)
     }
   }
+
+  // ── Hardware key mapping ───────────────────────────────────────────────────
 
   private fun mapKeyEvent(event: KeyEvent): String? {
     if (event.isCtrlPressed) {

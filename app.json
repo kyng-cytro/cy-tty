@@ -13,7 +13,7 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#141d41",
-        "foregroundImage": "./assets/images/icon-tp.png"
+        "foregroundImage": "./assets/images/android-icon-foreground.png"
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.anonymous.cytty"
@@ -25,11 +25,13 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#141d41",
-          "image": "./assets/images/icon.png",
-          "imageWidth": 200,
           "android": {
-            "image": "./assets/images/icon.png",
-            "imageWidth": 200
+            "image": "./assets/images/splash-icon.png",
+            "imageWidth": 280
+          },
+          "ios": {
+            "image": "./assets/images/splash-icon.png",
+            "imageWidth": 280
           }
         }
       ]
