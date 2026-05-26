@@ -8,11 +8,6 @@ A mobile SSH terminal for Android (and eventually iOS) built with Expo. Connect 
 
 ## Screenshots
 
-<!-- TODO: add screenshots -->
-| Connect | Terminal | Sessions | Settings |
-|---------|----------|----------|----------|
-| _soon_  | _soon_   | _soon_   | _soon_   |
-
 ---
 
 ## Features
@@ -34,17 +29,17 @@ A mobile SSH terminal for Android (and eventually iOS) built with Expo. Connect 
 
 ## Tech Stack
 
-| Layer | Library |
-|-------|---------|
-| Framework | Expo 56 (prebuild — no Expo Go) |
-| SSH transport | `modules/expo-ssh` — JSch (Android) / NMSSH (iOS) |
-| VT parser | `modules/expo-ghostty-vt` — custom TypeScript state machine, shaped to swap in libghostty when its C API stabilises |
-| Renderer | `@shopify/react-native-skia` |
-| UI | `react-native-paper` (Material Design 3) |
-| Gestures | `react-native-gesture-handler` + `react-native-reanimated` |
-| Navigation | Expo Router (file-based) |
-| Storage | `expo-secure-store`, `expo-file-system`, `expo-crypto` |
-| Auth | `expo-local-authentication` |
+| Layer         | Library                                                                                                             |
+| ------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Framework     | Expo 56 (prebuild — no Expo Go)                                                                                     |
+| SSH transport | `modules/expo-ssh` — JSch (Android) / NMSSH (iOS)                                                                   |
+| VT parser     | `modules/expo-ghostty-vt` — custom TypeScript state machine, shaped to swap in libghostty when its C API stabilises |
+| Renderer      | `@shopify/react-native-skia`                                                                                        |
+| UI            | `react-native-paper` (Material Design 3)                                                                            |
+| Gestures      | `react-native-gesture-handler` + `react-native-reanimated`                                                          |
+| Navigation    | Expo Router (file-based)                                                                                            |
+| Storage       | `expo-secure-store`, `expo-file-system`, `expo-crypto`                                                              |
+| Auth          | `expo-local-authentication`                                                                                         |
 
 ---
 
