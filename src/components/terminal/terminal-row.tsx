@@ -4,6 +4,9 @@
  * Wrapped in React.memo so it only re-renders when its `cells` array reference
  * changes.  applyDelta() in grid.ts preserves references for unchanged rows,
  * so React skips them automatically.
+ *
+ * Theme colours are passed as packed 0xRRGGBB integers so the memo comparison
+ * is a cheap integer equality check.
  */
 
 import { Glyphs, Group, Rect, type SkFont } from '@shopify/react-native-skia';
@@ -11,12 +14,7 @@ import { memo, useMemo } from 'react';
 
 import { resolveCellColors } from '@/core/terminal/grid';
 import type { TerminalCell } from '@/core/terminal/types';
-import {
-  argbToHex,
-  DEFAULT_BG_HEX,
-  DEFAULT_BG_RGB,
-  DEFAULT_FG_RGB,
-} from '@/core/terminal/colors';
+import { argbToHex } from '@/core/terminal/colors';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -47,6 +45,9 @@ function buildRowData(
   cellHeight: number,
   baseline: number,
   font: SkFont,
+  fgRgb: number,
+  bgRgb: number,
+  themePalette: readonly number[] | undefined,
 ): { bgRects: BgRect[]; glyphRuns: GlyphRun[] } {
   const bgRects: BgRect[] = [];
   // Map<colorHex, GlyphRun> — one entry per distinct fg colour in this row
@@ -56,10 +57,10 @@ function buildRowData(
     const cell = cells[col]!;
     const x = col * cellWidth;
 
-    const { fg, bg } = resolveCellColors(cell, DEFAULT_FG_RGB, DEFAULT_BG_RGB);
+    const { fg, bg } = resolveCellColors(cell, fgRgb, bgRgb, themePalette);
 
     // ── Background rect (skip default background to avoid overdraw) ───────
-    if ((bg & 0x00ffffff) !== DEFAULT_BG_RGB) {
+    if ((bg & 0x00ffffff) !== bgRgb) {
       bgRects.push({ x, y: rowY, w: cellWidth, h: cellHeight, color: argbToHex(bg) });
     }
 
@@ -96,6 +97,12 @@ export interface TerminalRowProps {
   baseline: number;
   font: SkFont;
   boldFont: SkFont | null;
+  /** Packed 0xRRGGBB default foreground colour from the active theme. */
+  fgRgb: number;
+  /** Packed 0xRRGGBB default background colour from the active theme. */
+  bgRgb: number;
+  /** Optional 16-colour ANSI palette override from the active theme. */
+  themePalette?: readonly number[];
 }
 
 export const TerminalRow = memo(function TerminalRow({
@@ -106,13 +113,17 @@ export const TerminalRow = memo(function TerminalRow({
   baseline,
   font,
   boldFont,
+  fgRgb,
+  bgRgb,
+  themePalette,
 }: TerminalRowProps) {
   const rowY = rowIndex * cellHeight;
 
   const { bgRects, glyphRuns } = useMemo(
-    () => buildRowData(cells, rowY, cellWidth, cellHeight, baseline, font),
+    () => buildRowData(cells, rowY, cellWidth, cellHeight, baseline, font, fgRgb, bgRgb, themePalette),
     // cells reference only changes when this row is dirty (see applyDelta)
-    [cells, rowY, cellWidth, cellHeight, baseline, font],
+    // fgRgb/bgRgb/themePalette are stable primitives / stable array refs from useMemo
+    [cells, rowY, cellWidth, cellHeight, baseline, font, fgRgb, bgRgb, themePalette],
   );
 
   return (

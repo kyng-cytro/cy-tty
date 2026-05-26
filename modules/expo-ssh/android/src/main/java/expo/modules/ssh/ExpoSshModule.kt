@@ -53,6 +53,44 @@ class ExpoSshModule : Module() {
       startReading(inStream, ch)
     }
 
+    // ── connectWithKey ──────────────────────────────────────────────────────
+    AsyncFunction("connectWithKey") { host: String, port: Int, username: String,
+                                      privateKeyPem: String, passphrase: String ->
+      teardown()
+
+      val jsch = JSch()
+      // JSch accepts PEM bytes directly as identity
+      val keyBytes = privateKeyPem.toByteArray(Charsets.UTF_8)
+      val phrase = passphrase.ifEmpty { null }?.toByteArray(Charsets.UTF_8)
+      jsch.addIdentity(
+        /* name       */ "cy-tty-key",
+        /* prvkey     */ keyBytes,
+        /* pubkey     */ null,
+        /* passphrase */ phrase,
+      )
+
+      val sess = jsch.getSession(username, host, port)
+      sess.setConfig("StrictHostKeyChecking", "no")
+      sess.setConfig("PreferredAuthentications", "publickey")
+      sess.connect(15_000)
+
+      val ch = sess.openChannel("shell") as ChannelShell
+      ch.setPtyType("xterm-256color")
+      ch.setPtySize(80, 24, 0, 0)
+
+      val inStream = ch.inputStream
+      val outStream = ch.outputStream
+
+      ch.connect(15_000)
+
+      jschSession = sess
+      shellChannel = ch
+      shellInput = inStream
+      shellOutput = outStream
+
+      startReading(inStream, ch)
+    }
+
     // ── disconnect ──────────────────────────────────────────────────────────
     AsyncFunction("disconnect") {
       teardown()

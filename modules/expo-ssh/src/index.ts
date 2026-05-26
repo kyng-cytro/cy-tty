@@ -11,10 +11,23 @@ import type {
 
 declare class ExpoSshModule extends NativeModule<SshModuleEvents> {
   /**
-   * Establish an SSH connection and open an interactive PTY shell.
+   * Establish an SSH connection using password authentication.
    * Resolves once the shell is ready; rejects on connect/auth failure.
    */
   connect(host: string, port: number, username: string, password: string): Promise<void>;
+
+  /**
+   * Establish an SSH connection using public-key authentication.
+   * `privateKeyPem` is the PEM-encoded private key (OpenSSH or PKCS#8 format).
+   * `passphrase` is optional — pass empty string for unencrypted keys.
+   */
+  connectWithKey(
+    host: string,
+    port: number,
+    username: string,
+    privateKeyPem: string,
+    passphrase: string,
+  ): Promise<void>;
 
   /** Close the SSH session and channel. Safe to call even if not connected. */
   disconnect(): Promise<void>;
@@ -49,6 +62,16 @@ const emitter = new EventEmitter<SshModuleEvents>(nativeModule);
 export const SshClient = {
   connect({ host, port = 22, username, password }: SshConnectOptions): Promise<void> {
     return nativeModule.connect(host, port, username, password);
+  },
+
+  connectWithKey(
+    host: string,
+    port = 22,
+    username: string,
+    privateKeyPem: string,
+    passphrase = '',
+  ): Promise<void> {
+    return nativeModule.connectWithKey(host, port, username, privateKeyPem, passphrase);
   },
 
   disconnect(): Promise<void> {

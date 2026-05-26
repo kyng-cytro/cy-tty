@@ -59,8 +59,10 @@ export function useTerminalSize({
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
 
+  // SafeAreaView in the terminal screen handles bottom inset via its 'edges' prop,
+  // so we only subtract top here.  toolbar height is the Ctrl/Tab/arrows bar.
   const terminalWidth = width;
-  const terminalHeight = height - insets.top - insets.bottom - toolbarHeight;
+  const terminalHeight = height - insets.top - toolbarHeight;
 
   const cols = Math.max(1, Math.floor(terminalWidth / cellWidth));
   const rows = Math.max(1, Math.floor(terminalHeight / cellHeight));

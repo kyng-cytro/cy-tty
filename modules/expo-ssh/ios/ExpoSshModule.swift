@@ -70,6 +70,65 @@ public class ExpoSshModule: Module {
       }
     }
 
+    // ── connectWithKey ──────────────────────────────────────────────────────
+    AsyncFunction("connectWithKey") { [weak self] (
+      host: String, port: Int, username: String,
+      privateKeyPem: String, passphrase: String,
+      promise: Promise
+    ) in
+      guard let self else {
+        promise.reject("SSH_ERROR", "Module deallocated")
+        return
+      }
+
+      self.sshQueue.async {
+        self.closeConnectionOnQueue()
+
+        let sess = NMSSHSession(host: host, port: port, andUsername: username)
+        sess.connect()
+
+        guard sess.isConnected else {
+          promise.reject("SSH_CONNECT", "Failed to connect to \(host):\(port)")
+          return
+        }
+
+        // NMSSH accepts PEM strings directly.
+        // publicKey can be nil — NMSSH derives it from the private key.
+        let phrase: String? = passphrase.isEmpty ? nil : passphrase
+        sess.authenticateByPublicKey(
+          withUsername: username,
+          password: phrase,
+          publicKey: nil,
+          privateKey: privateKeyPem
+        )
+
+        guard sess.isAuthorized else {
+          sess.disconnect()
+          promise.reject("SSH_AUTH", "Key authentication failed for \(username)@\(host)")
+          return
+        }
+
+        let ch = sess.channel
+        ch.delegate = self
+        ch.requestPty = true
+        ch.ptyTerminalType = .xterm
+
+        var shellError: NSError?
+        let started = ch.startShell(&shellError)
+
+        guard started, shellError == nil else {
+          sess.disconnect()
+          let msg = shellError?.localizedDescription ?? "Failed to start shell"
+          promise.reject("SSH_SHELL", msg)
+          return
+        }
+
+        self.session = sess
+        self.channel = ch
+        promise.resolve(nil)
+      }
+    }
+
     // ── disconnect ──────────────────────────────────────────────────────────
     AsyncFunction("disconnect") { [weak self] (promise: Promise) in
       guard let self else { promise.resolve(nil); return }

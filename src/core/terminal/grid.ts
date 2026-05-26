@@ -132,18 +132,28 @@ export const ANSI_256: readonly number[] = (() => {
 /**
  * Resolve a CellColor to a packed 0xAARRGGBB integer suitable for Skia.
  *
- * `defaultFg` / `defaultBg` should come from the current theme (Material You
- * surface/on-surface tokens, resolved at render time).
+ * @param color        The CellColor to resolve.
+ * @param defaultRgb   Packed 0xRRGGBB used when kind === 'default'.
+ * @param themePalette Optional 16-element array overriding ANSI colours 0-15.
+ *                     Indices 16-255 always use the standard xterm cube/greyscale.
  */
 export function resolveColor(
   color: CellColor,
   defaultRgb: number,
+  themePalette?: readonly number[],
 ): number {
   switch (color.kind) {
     case 'default':
       return 0xff000000 | defaultRgb;
-    case 'palette':
-      return 0xff000000 | (ANSI_256[color.index] ?? 0xffffff);
+    case 'palette': {
+      const idx = color.index;
+      // Theme overrides indices 0-15 (standard ANSI); 16-255 use xterm table
+      const rgb =
+        idx < 16 && themePalette
+          ? (themePalette[idx] ?? ANSI_256[idx] ?? 0xffffff)
+          : (ANSI_256[idx] ?? 0xffffff);
+      return 0xff000000 | rgb;
+    }
     case 'rgb':
       return (0xff << 24) | (color.r << 16) | (color.g << 8) | color.b;
   }
@@ -152,14 +162,17 @@ export function resolveColor(
 /**
  * Convenience: resolve fg & bg with inverse-video support.
  * Returns `{ fg, bg }` as 0xAARRGGBB integers.
+ *
+ * @param themePalette Optional 16-element theme ANSI palette (overrides 0-15).
  */
 export function resolveCellColors(
   cell: TerminalCell,
   defaultFgRgb: number,
   defaultBgRgb: number,
+  themePalette?: readonly number[],
 ): { fg: number; bg: number } {
-  let fg = resolveColor(cell.fg, defaultFgRgb);
-  let bg = resolveColor(cell.bg, defaultBgRgb);
+  let fg = resolveColor(cell.fg, defaultFgRgb, themePalette);
+  let bg = resolveColor(cell.bg, defaultBgRgb, themePalette);
 
   if (cell.inverse) {
     [fg, bg] = [bg, fg];
