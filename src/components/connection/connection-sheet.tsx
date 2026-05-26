@@ -25,6 +25,7 @@ export interface ConnectionSheetProps {
   onSave: (profile: SshProfile) => void;
   initialHost?: string;
   editProfile?: SshProfile;
+  onOpenChange?: (open: boolean) => void;
 }
 
 function validate(
@@ -48,7 +49,7 @@ function validate(
 export const ConnectionSheet = forwardRef<
   BottomSheetModal,
   ConnectionSheetProps
->(function ConnectionSheet({ onSave, initialHost = "", editProfile }, ref) {
+>(function ConnectionSheet({ onSave, initialHost = "", editProfile, onOpenChange }, ref) {
   const theme = useTheme();
 
   const labelRef = useRef(editProfile?.label ?? "");
@@ -168,6 +169,7 @@ export const ConnectionSheet = forwardRef<
       backdropComponent={renderBackdrop}
       keyboardBehavior="interactive"
       keyboardBlurBehavior="restore"
+      onChange={(index) => onOpenChange?.(index >= 0)}
     >
       <BottomSheetView style={styles.sheetView}>
         <ScrollView

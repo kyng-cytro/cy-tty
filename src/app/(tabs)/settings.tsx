@@ -258,11 +258,12 @@ function TerminalSection() {
 
   const categories = getCategories();
 
+  const [fontOpen, setFontOpen] = useState(false);
+  const [themeOpen, setThemeOpen] = useState(false);
+
   const MIN_SIZE = 9;
   const MAX_SIZE = 20;
   const [sliderWidth, setSliderWidth] = useState(0);
-  // localSize: non-null while dragging (gives instant visual feedback);
-  // null when idle (falls back to committed fontSize from preferences).
   const [localSize, setLocalSize] = useState<number | null>(null);
   const displaySize = localSize ?? fontSize;
   const thumbPct  = (displaySize - MIN_SIZE) / (MAX_SIZE - MIN_SIZE);
@@ -329,110 +330,140 @@ function TerminalSection() {
 
         <Divider />
 
-        <View style={styles.fontPickerHeader}>
+        <TouchableOpacity
+          onPress={() => setFontOpen((o) => !o)}
+          activeOpacity={0.7}
+          style={styles.accordionHeader}
+        >
           <MaterialCommunityIcons name="format-font" size={22} color={uiTheme.colors.onSurfaceVariant} style={styles.listIcon} />
-          <Text variant="bodyMedium" style={[styles.fontPickerLabel, { color: uiTheme.colors.onSurface }]}>
-            Font
-          </Text>
-        </View>
-        {allFonts.map((f: TerminalFont, i) => {
-          const isActive = f.id === activeFont.id;
-          return (
-            <View key={f.id}>
-              <TouchableOpacity
-                onPress={() => setFont(f.id)}
-                activeOpacity={0.6}
-                style={[
-                  styles.fontRow,
-                  isActive && { backgroundColor: uiTheme.colors.primaryContainer ?? uiTheme.colors.surfaceVariant },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.fontBadge,
-                    { backgroundColor: isActive ? uiTheme.colors.primary : uiTheme.colors.surfaceVariant },
-                  ]}
-                >
-                  <Text
+          <View style={styles.accordionMeta}>
+            <Text variant="bodyMedium" style={{ color: uiTheme.colors.onSurface }}>Font</Text>
+            <Text variant="labelSmall" style={{ color: uiTheme.colors.primary }}>{activeFont.name}</Text>
+          </View>
+          <MaterialCommunityIcons
+            name={fontOpen ? 'chevron-up' : 'chevron-down'}
+            size={20}
+            color={uiTheme.colors.onSurfaceVariant}
+          />
+        </TouchableOpacity>
+
+        {fontOpen && (
+          <View>
+            <Divider />
+            {allFonts.map((f: TerminalFont, i) => {
+              const isActive = f.id === activeFont.id;
+              return (
+                <View key={f.id}>
+                  <TouchableOpacity
+                    onPress={() => setFont(f.id)}
+                    activeOpacity={0.6}
                     style={[
-                      styles.fontBadgeText,
-                      { color: isActive ? uiTheme.colors.onPrimary : uiTheme.colors.onSurfaceVariant },
+                      styles.fontRow,
+                      isActive && { backgroundColor: uiTheme.colors.primaryContainer ?? uiTheme.colors.surfaceVariant },
                     ]}
                   >
-                    Aa
-                  </Text>
-                </View>
-
-                <View style={styles.fontInfo}>
-                  <Text
-                    variant="bodyMedium"
-                    style={{ color: isActive ? uiTheme.colors.primary : uiTheme.colors.onSurface, fontWeight: isActive ? '600' : '400' }}
-                  >
-                    {f.name}
-                  </Text>
-                  <View style={styles.fontMeta}>
-                    <Text variant="labelSmall" style={{ color: uiTheme.colors.onSurfaceVariant }}>
-                      {f.description}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.fontRight}>
-                  {f.ligatures && (
-                    <View style={[styles.ligaBadge, { borderColor: isActive ? uiTheme.colors.primary : uiTheme.colors.outline }]}>
-                      <Text style={[styles.ligaBadgeText, { color: isActive ? uiTheme.colors.primary : uiTheme.colors.onSurfaceVariant }]}>
-                        liga
+                    <View
+                      style={[
+                        styles.fontBadge,
+                        { backgroundColor: isActive ? uiTheme.colors.primary : uiTheme.colors.surfaceVariant },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.fontBadgeText,
+                          { color: isActive ? uiTheme.colors.onPrimary : uiTheme.colors.onSurfaceVariant },
+                        ]}
+                      >
+                        Aa
                       </Text>
                     </View>
-                  )}
-                  {isActive
-                    ? <MaterialCommunityIcons name="check-circle" size={20} color={uiTheme.colors.primary} style={{ marginLeft: 8 }} />
-                    : <MaterialCommunityIcons name="circle-outline" size={20} color={uiTheme.colors.outline} style={{ marginLeft: 8 }} />
-                  }
+
+                    <View style={styles.fontInfo}>
+                      <Text
+                        variant="bodyMedium"
+                        style={{ color: isActive ? uiTheme.colors.primary : uiTheme.colors.onSurface, fontWeight: isActive ? '600' : '400' }}
+                      >
+                        {f.name}
+                      </Text>
+                      <View style={styles.fontMeta}>
+                        <Text variant="labelSmall" style={{ color: uiTheme.colors.onSurfaceVariant }}>
+                          {f.description}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.fontRight}>
+                      {f.ligatures && (
+                        <View style={[styles.ligaBadge, { borderColor: isActive ? uiTheme.colors.primary : uiTheme.colors.outline }]}>
+                          <Text style={[styles.ligaBadgeText, { color: isActive ? uiTheme.colors.primary : uiTheme.colors.onSurfaceVariant }]}>
+                            liga
+                          </Text>
+                        </View>
+                      )}
+                      {isActive
+                        ? <MaterialCommunityIcons name="check-circle" size={20} color={uiTheme.colors.primary} style={{ marginLeft: 8 }} />
+                        : <MaterialCommunityIcons name="circle-outline" size={20} color={uiTheme.colors.outline} style={{ marginLeft: 8 }} />
+                      }
+                    </View>
+                  </TouchableOpacity>
+                  {i < allFonts.length - 1 && <Divider />}
                 </View>
-              </TouchableOpacity>
-              {i < allFonts.length - 1 && <Divider />}
-            </View>
-          );
-        })}
+              );
+            })}
+          </View>
+        )}
 
         <Divider />
 
-        <View style={[styles.settingRow, { paddingBottom: 0 }]}>
+        <TouchableOpacity
+          onPress={() => setThemeOpen((o) => !o)}
+          activeOpacity={0.7}
+          style={styles.accordionHeader}
+        >
           <MaterialCommunityIcons name="palette-outline" size={22} color={uiTheme.colors.onSurfaceVariant} style={styles.listIcon} />
-          <View style={{ flex: 1, marginLeft: 8, marginBottom: 12 }}>
-            <Text variant="bodyMedium" style={{ color: uiTheme.colors.onSurface, marginBottom: 4 }}>Colour theme</Text>
+          <View style={styles.accordionMeta}>
+            <Text variant="bodyMedium" style={{ color: uiTheme.colors.onSurface }}>Colour theme</Text>
             <Text variant="labelSmall" style={{ color: uiTheme.colors.primary }}>{activeTheme.name}</Text>
           </View>
-        </View>
+          <MaterialCommunityIcons
+            name={themeOpen ? 'chevron-up' : 'chevron-down'}
+            size={20}
+            color={uiTheme.colors.onSurfaceVariant}
+          />
+        </TouchableOpacity>
 
-        {categories.map((cat) => {
-          const themesInCat = getThemesByCategory(cat);
-          return (
-            <View key={cat} style={styles.categorySection}>
-              <Text
-                variant="labelSmall"
-                style={[styles.categoryLabel, { color: uiTheme.colors.onSurfaceVariant }]}
-              >
-                {cat.toUpperCase()}
-              </Text>
-              <FlatList
-                data={themesInCat}
-                keyExtractor={(t) => t.id}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.swatchRow}
-                renderItem={({ item }) => (
-                  <ThemeSwatch
-                    item={item}
-                    isActive={item.id === activeTheme.id}
-                    onPress={() => setTheme(item.id)}
+        {themeOpen && (
+          <View style={{ paddingBottom: 8 }}>
+            <Divider />
+            {categories.map((cat) => {
+              const themesInCat = getThemesByCategory(cat);
+              return (
+                <View key={cat} style={styles.categorySection}>
+                  <Text
+                    variant="labelSmall"
+                    style={[styles.categoryLabel, { color: uiTheme.colors.onSurfaceVariant }]}
+                  >
+                    {cat.toUpperCase()}
+                  </Text>
+                  <FlatList
+                    data={themesInCat}
+                    keyExtractor={(t) => t.id}
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.swatchRow}
+                    renderItem={({ item }) => (
+                      <ThemeSwatch
+                        item={item}
+                        isActive={item.id === activeTheme.id}
+                        onPress={() => setTheme(item.id)}
+                      />
+                    )}
                   />
-                )}
-              />
-            </View>
-          );
-        })}
+                </View>
+              );
+            })}
+          </View>
+        )}
       </Card>
     </View>
   );
@@ -526,15 +557,17 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
   },
-  fontPickerHeader: {
+  accordionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
-    paddingTop: 14,
-    paddingBottom: 6,
+    paddingVertical: 14,
     gap: 10,
   },
-  fontPickerLabel: { fontWeight: '500' },
+  accordionMeta: {
+    flex: 1,
+    gap: 2,
+  },
   fontRow: {
     flexDirection: 'row',
     alignItems: 'center',

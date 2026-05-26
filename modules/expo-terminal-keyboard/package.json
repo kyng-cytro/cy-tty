@@ -1,0 +1,16 @@
+{
+  "name": "expo-terminal-keyboard",
+  "version": "1.0.0",
+  "description": "Native buffer-free keyboard input view for cy-tty terminal",
+  "main": "src/index",
+  "types": "src/index",
+  "files": [
+    "src",
+    "ios",
+    "android",
+    "expo-module.config.json"
+  ],
+  "expo": {
+    "autolinking": {}
+  }
+}

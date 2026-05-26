@@ -5,13 +5,7 @@ import {
   BottomSheetTextInput,
   type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
-import {
-  forwardRef,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { forwardRef, useCallback, useMemo, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { Text, useTheme } from "react-native-paper";
 
@@ -28,6 +22,7 @@ export interface GlobalSearchSheetProps {
   onConnectProfile: (profile: SshProfile) => void;
   onConnectHost: (host: DiscoveredHost) => void;
   onResumeSession: (sessionId: string) => void;
+  onOpenChange?: (open: boolean) => void;
 }
 
 function profileMatches(p: SshProfile, q: string): boolean {
@@ -63,6 +58,7 @@ export const GlobalSearchSheet = forwardRef<
     onConnectProfile,
     onConnectHost,
     onResumeSession,
+    onOpenChange,
   },
   ref,
 ) {
@@ -70,8 +66,8 @@ export const GlobalSearchSheet = forwardRef<
 
   // Uncontrolled: ref tracks the raw text so the input never re-renders from
   // state changes. A short debounce fires the filter state update separately.
-  const queryRef     = useRef("");
-  const debounceRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const queryRef = useRef("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [filterQuery, setFilterQuery] = useState("");
 
   const handleChangeText = useCallback((text: string) => {
@@ -81,17 +77,26 @@ export const GlobalSearchSheet = forwardRef<
   }, []);
 
   const filteredProfiles = useMemo(
-    () => filterQuery ? profiles.filter((p) => profileMatches(p, filterQuery)) : profiles,
+    () =>
+      filterQuery
+        ? profiles.filter((p) => profileMatches(p, filterQuery))
+        : profiles,
     [profiles, filterQuery],
   );
 
   const filteredSessions = useMemo(
-    () => filterQuery ? sessions.filter((s) => sessionMatches(s, filterQuery)) : sessions,
+    () =>
+      filterQuery
+        ? sessions.filter((s) => sessionMatches(s, filterQuery))
+        : sessions,
     [sessions, filterQuery],
   );
 
   const filteredHosts = useMemo(
-    () => filterQuery ? scannedHosts.filter((h) => hostMatches(h, filterQuery)) : scannedHosts,
+    () =>
+      filterQuery
+        ? scannedHosts.filter((h) => hostMatches(h, filterQuery))
+        : scannedHosts,
     [scannedHosts, filterQuery],
   );
 
@@ -107,7 +112,8 @@ export const GlobalSearchSheet = forwardRef<
     [],
   );
 
-  const total = filteredProfiles.length + filteredSessions.length + filteredHosts.length;
+  const total =
+    filteredProfiles.length + filteredSessions.length + filteredHosts.length;
 
   return (
     <BottomSheetModal
@@ -118,8 +124,11 @@ export const GlobalSearchSheet = forwardRef<
       backdropComponent={renderBackdrop}
       keyboardBehavior="interactive"
       keyboardBlurBehavior="restore"
+      onChange={(index) => onOpenChange?.(index >= 0)}
     >
-      <View style={[styles.searchBar, { borderBottomColor: theme.colors.outline }]}>
+      <View
+        style={[styles.searchBar, { borderBottomColor: theme.colors.outline }]}
+      >
         <BottomSheetTextInput
           defaultValue=""
           onChangeText={handleChangeText}
@@ -168,8 +177,13 @@ export const GlobalSearchSheet = forwardRef<
 
         {total === 0 && (
           <View style={styles.empty}>
-            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-              {filterQuery ? `No results for "${filterQuery}"` : "No connections yet"}
+            <Text
+              variant="bodyMedium"
+              style={{ color: theme.colors.onSurfaceVariant }}
+            >
+              {filterQuery
+                ? `No results for "${filterQuery}"`
+                : "No connections yet"}
             </Text>
           </View>
         )}

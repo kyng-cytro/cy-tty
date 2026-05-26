@@ -3,7 +3,7 @@
     "name": "cy-tty",
     "slug": "cy-tty",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "cytty",
     "userInterfaceStyle": "automatic",
@@ -23,6 +23,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-screen-orientation",
       [
         "expo-splash-screen",
         {

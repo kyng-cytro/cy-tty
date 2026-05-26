@@ -22,6 +22,7 @@ export interface TerminalSessionContextValue {
   cols: number;
   rows: number;
   showKeyboard: () => void;
+  hideKeyboard: () => void;
   modifier: 'ctrl' | 'alt' | null;
   toggleModifier: (mod: 'ctrl' | 'alt') => void;
 }
@@ -63,7 +64,7 @@ export function TerminalSession({ host, port = 22, username, password, style, ch
   }, []);
 
   const ctx = useMemo<TerminalSessionContextValue>(
-    () => ({ write, disconnect, status, error, cols, rows, showKeyboard: () => {}, modifier: null, toggleModifier: () => {} }),
+    () => ({ write, disconnect, status, error, cols, rows, showKeyboard: () => {}, hideKeyboard: () => {}, modifier: null, toggleModifier: () => {} }),
     [write, disconnect, status, error, cols, rows],
   );
 

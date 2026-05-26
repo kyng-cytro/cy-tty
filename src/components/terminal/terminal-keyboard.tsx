@@ -14,7 +14,7 @@ const SEND_KEYS = [
 ] as const;
 
 export function TerminalKeyboard() {
-  const { write, status, showKeyboard, modifier, toggleModifier } =
+  const { write, status, showKeyboard, hideKeyboard, modifier, toggleModifier } =
     useTerminalSessionContext();
   const theme = useTheme();
   const disabled = status !== "connected";
@@ -35,9 +35,9 @@ export function TerminalKeyboard() {
   }, []);
 
   const handleToggle = useCallback(() => {
-    if (keyboardVisible) Keyboard.dismiss();
+    if (keyboardVisible) hideKeyboard();
     else showKeyboard();
-  }, [keyboardVisible, showKeyboard]);
+  }, [keyboardVisible, showKeyboard, hideKeyboard]);
 
   return (
     <View

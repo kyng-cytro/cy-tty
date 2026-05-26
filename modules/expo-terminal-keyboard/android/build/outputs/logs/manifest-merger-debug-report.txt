@@ -1,0 +1,15 @@
+-- Merging decision tree log ---
+manifest
+ADDED from /home/cytro/Documents/app-dev/cy-tty/modules/expo-terminal-keyboard/android/src/main/AndroidManifest.xml:1:1-53
+INJECTED from /home/cytro/Documents/app-dev/cy-tty/modules/expo-terminal-keyboard/android/src/main/AndroidManifest.xml:1:1-53
+	package
+		ADDED from /home/cytro/Documents/app-dev/cy-tty/modules/expo-terminal-keyboard/android/src/main/AndroidManifest.xml:1:11-50
+		INJECTED from /home/cytro/Documents/app-dev/cy-tty/modules/expo-terminal-keyboard/android/src/main/AndroidManifest.xml
+uses-sdk
+INJECTED from /home/cytro/Documents/app-dev/cy-tty/modules/expo-terminal-keyboard/android/src/main/AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from /home/cytro/Documents/app-dev/cy-tty/modules/expo-terminal-keyboard/android/src/main/AndroidManifest.xml
+INJECTED from /home/cytro/Documents/app-dev/cy-tty/modules/expo-terminal-keyboard/android/src/main/AndroidManifest.xml
+	android:targetSdkVersion
+		INJECTED from /home/cytro/Documents/app-dev/cy-tty/modules/expo-terminal-keyboard/android/src/main/AndroidManifest.xml
+	android:minSdkVersion
+		INJECTED from /home/cytro/Documents/app-dev/cy-tty/modules/expo-terminal-keyboard/android/src/main/AndroidManifest.xml

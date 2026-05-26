@@ -1,12 +1,14 @@
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { router, useLocalSearchParams } from "expo-router";
+import * as ScreenOrientation from "expo-screen-orientation";
+import { TerminalKeyboardView } from "expo-terminal-keyboard";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   StyleSheet,
-  TextInput,
   View,
 } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -222,8 +224,6 @@ function FloatingHeader({ label, opacity }: FloatingHeaderProps) {
   );
 }
 
-const SENTINEL = "​"; // zero-width space — never sent to SSH
-
 export default function TerminalScreen() {
   const theme = useTheme();
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -263,29 +263,21 @@ export default function TerminalScreen() {
   const writeRef = useRef(write);
   writeRef.current = write;
 
-  const textInputRef = useRef<TextInput>(null);
-  const isInputFocusedRef = useRef(false);
-  const prevTextRef = useRef(SENTINEL);
-  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [keyboardFocused, setKeyboardFocused] = useState(false);
 
-  // Only blur→focus when already focused (keyboard was manually dismissed).
-  // Plain focus() suffices otherwise and avoids the keyboardDidHide flicker.
-  const showKeyboard = useCallback(() => {
-    if (isInputFocusedRef.current) {
-      textInputRef.current?.blur();
-      requestAnimationFrame(() => textInputRef.current?.focus());
-    } else {
-      textInputRef.current?.focus();
-    }
+  const showKeyboard = useCallback(() => setKeyboardFocused(true), []);
+  const hideKeyboard = useCallback(() => setKeyboardFocused(false), []);
+
+  useEffect(() => {
+    const t = setTimeout(() => setKeyboardFocused(true), 350);
+    return () => clearTimeout(t);
   }, []);
 
   useEffect(() => {
-    const t = setTimeout(() => {
-      textInputRef.current?.focus();
-      textInputRef.current?.setNativeProps({ text: SENTINEL });
-      prevTextRef.current = SENTINEL;
-    }, 350);
-    return () => clearTimeout(t);
+    const sub = Keyboard.addListener("keyboardDidHide", () =>
+      setKeyboardFocused(false),
+    );
+    return () => sub.remove();
   }, []);
 
   const pinchStartSize = useRef(fontSize);
@@ -319,6 +311,15 @@ export default function TerminalScreen() {
     };
   }, [showHeader]);
 
+  useEffect(() => {
+    ScreenOrientation.unlockAsync().catch(() => {});
+    return () => {
+      ScreenOrientation.lockAsync(
+        ScreenOrientation.OrientationLock.PORTRAIT_UP,
+      ).catch(() => {});
+    };
+  }, []);
+
   if (!session) {
     return (
       <SafeAreaView
@@ -345,6 +346,7 @@ export default function TerminalScreen() {
       cols: session.cols,
       rows: session.rows,
       showKeyboard,
+      hideKeyboard,
       modifier,
       toggleModifier,
     }),
@@ -357,6 +359,7 @@ export default function TerminalScreen() {
       session.cols,
       session.rows,
       showKeyboard,
+      hideKeyboard,
       modifier,
       toggleModifier,
     ],
@@ -391,50 +394,9 @@ export default function TerminalScreen() {
             </Pressable>
           </GestureDetector>
 
-          {/*
-           * Diff-based input: prevTextRef mirrors the native buffer.
-           * onChangeText sends only the delta — no reset during typing, no race.
-           * Idle timer fires after 800 ms of inactivity and safely resets the
-           * buffer at a point when no keystrokes can be in-flight.
-           */}
-          <TextInput
-            ref={textInputRef}
-            style={styles.hiddenInput}
-            multiline={false}
-            autoCapitalize="none"
-            autoCorrect={false}
-            spellCheck={false}
-            autoComplete="off"
-            blurOnSubmit={false}
-            defaultValue={SENTINEL}
-            onFocus={() => {
-              isInputFocusedRef.current = true;
-            }}
-            onBlur={() => {
-              isInputFocusedRef.current = false;
-            }}
-            onChangeText={(text) => {
-              const prev = prevTextRef.current;
-
-              if (text.length > prev.length) {
-                const added = text.slice(prev.length).replace(/​/g, "");
-                if (added === "\n" || added === "\r\n") writeRef.current("\r");
-                else if (added) writeRef.current(added);
-              } else if (text.length < prev.length) {
-                for (let i = 0; i < prev.length - text.length; i++)
-                  writeRef.current("\x7f");
-              }
-
-              prevTextRef.current = text;
-
-              // Idle reset: safe because 800 ms of silence means no in-flight keystrokes.
-              if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
-              idleTimerRef.current = setTimeout(() => {
-                textInputRef.current?.setNativeProps({ text: SENTINEL });
-                prevTextRef.current = SENTINEL;
-              }, 800);
-            }}
-            onSubmitEditing={() => writeRef.current("\r")}
+          <TerminalKeyboardView
+            focused={keyboardFocused}
+            onInput={(data) => writeRef.current(data)}
           />
 
           <TerminalKeyboard />
@@ -449,13 +411,6 @@ export default function TerminalScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   flex: { flex: 1 },
-  hiddenInput: {
-    position: "absolute",
-    width: 1,
-    height: 1,
-    opacity: 0,
-    bottom: 44,
-  },
   overlay: {
     ...StyleSheet.absoluteFill,
     alignItems: "center",

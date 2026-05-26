@@ -1,8 +1,8 @@
 import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { router } from "expo-router";
-import { useCallback, useRef } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { BackHandler, ScrollView, StyleSheet, View } from "react-native";
 import {
   ActivityIndicator,
   FAB,
@@ -35,6 +35,18 @@ export default function ConnectScreen() {
   const searchRef = useRef<BottomSheetModal>(null);
   const editingProfile = useRef<SshProfile | undefined>(undefined);
   const prefillHost = useRef("");
+
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (searchOpen) { searchRef.current?.dismiss(); return true; }
+      if (sheetOpen) { sheetRef.current?.dismiss(); return true; }
+      return false;
+    });
+    return () => sub.remove();
+  }, [sheetOpen, searchOpen]);
 
   const launchSession = useCallback(
     (profile: SshProfile) => {
@@ -207,6 +219,7 @@ export default function ConnectScreen() {
           onSave={handleSaveAndConnect}
           initialHost={prefillHost.current}
           editProfile={editingProfile.current}
+          onOpenChange={setSheetOpen}
         />
 
         <GlobalSearchSheet
@@ -217,6 +230,7 @@ export default function ConnectScreen() {
           onConnectHost={handleConnectDevice}
           onResumeSession={handleResumeSession}
           sessions={Array.from(sessions.values())}
+          onOpenChange={setSearchOpen}
         />
       </SafeAreaView>
     </BottomSheetModalProvider>
