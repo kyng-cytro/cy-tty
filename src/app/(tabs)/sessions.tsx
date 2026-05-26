@@ -53,60 +53,58 @@ function SessionRow({ session }: { session: LiveSession }) {
   };
 
   return (
-    <Menu
-      visible={menuVisible}
-      onDismiss={() => setMenuVisible(false)}
-      anchor={
-        <Pressable
-          onPress={handlePress}
-          onLongPress={() => setMenuVisible(true)}
-          android_ripple={{ color: theme.colors.primary + "22" }}
-        >
-          <Card
-            style={[styles.card, { backgroundColor: theme.colors.surface }]}
-            contentStyle={styles.cardContent}
-          >
-            <View style={[styles.dot, { backgroundColor: dotColor }]} />
+    <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
+      <Pressable
+        onPress={handlePress}
+        onLongPress={() => setMenuVisible(true)}
+        android_ripple={{ color: theme.colors.primary + "22", borderless: false }}
+        style={styles.pressable}
+      >
+        <View style={[styles.dot, { backgroundColor: dotColor }]} />
 
-            <View style={styles.info}>
-              <Text variant="titleSmall" numberOfLines={1} style={{ color: theme.colors.onSurface }}>
-                {session.profile.label}
-              </Text>
-              <Text variant="bodySmall" numberOfLines={1} style={{ color: theme.colors.onSurfaceVariant }}>
-                {session.profile.username ? `${session.profile.username}@` : ""}
-                {session.profile.host}:{session.profile.port}
-              </Text>
-              <Text variant="labelSmall" style={{ color: dotColor, opacity: 0.9 }}>
-                {STATUS_LABEL[session.status]}
-                {session.status === "connected" && `  ·  ${session.cols}×${session.rows}`}
-                {session.status === "error" && session.error ? `  —  ${session.error}` : ""}
-              </Text>
-            </View>
+        <View style={styles.info}>
+          <Text variant="titleSmall" numberOfLines={1} style={{ color: theme.colors.onSurface }}>
+            {session.profile.label}
+          </Text>
+          <Text variant="bodySmall" numberOfLines={1} style={{ color: theme.colors.onSurfaceVariant }}>
+            {session.profile.username ? `${session.profile.username}@` : ""}
+            {session.profile.host}:{session.profile.port}
+          </Text>
+          <Text variant="labelSmall" style={{ color: dotColor, opacity: 0.9 }}>
+            {STATUS_LABEL[session.status]}
+            {session.status === "connected" && `  ·  ${session.cols}×${session.rows}`}
+            {session.status === "error" && session.error ? `  —  ${session.error}` : ""}
+          </Text>
+        </View>
 
-            <MaterialCommunityIcons
-              name="chevron-right"
-              size={20}
-              color={theme.colors.onSurfaceVariant}
-              style={{ opacity: 0.4 }}
-            />
-          </Card>
-        </Pressable>
-      }
-    >
-      {canReconnect && (
-        <Menu.Item
-          leadingIcon="refresh"
-          onPress={() => { setMenuVisible(false); handlePress(); }}
-          title="Reconnect"
+        <MaterialCommunityIcons
+          name="chevron-right"
+          size={20}
+          color={theme.colors.onSurfaceVariant}
+          style={{ opacity: 0.4 }}
         />
-      )}
-      <Menu.Item
-        leadingIcon="close"
-        onPress={() => { setMenuVisible(false); destroy(session.id); }}
-        title="Disconnect"
-        titleStyle={{ color: theme.colors.error }}
-      />
-    </Menu>
+
+        <Menu
+          visible={menuVisible}
+          onDismiss={() => setMenuVisible(false)}
+          anchor={<View style={styles.menuAnchor} />}
+        >
+          {canReconnect && (
+            <Menu.Item
+              leadingIcon="refresh"
+              onPress={() => { setMenuVisible(false); handlePress(); }}
+              title="Reconnect"
+            />
+          )}
+          <Menu.Item
+            leadingIcon="close"
+            onPress={() => { setMenuVisible(false); destroy(session.id); }}
+            title="Disconnect"
+            titleStyle={{ color: theme.colors.error }}
+          />
+        </Menu>
+      </Pressable>
+    </Card>
   );
 }
 
@@ -178,12 +176,20 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginVertical: 6,
     borderRadius: 12,
+    overflow: "hidden",
   },
-  cardContent: {
+  pressable: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 14,
     paddingVertical: 10,
+  },
+  menuAnchor: {
+    position: "absolute",
+    right: 0,
+    bottom: 0,
+    width: 1,
+    height: 1,
   },
   dot: {
     width: 10,
