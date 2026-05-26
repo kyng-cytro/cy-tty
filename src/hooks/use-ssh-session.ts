@@ -157,7 +157,6 @@ export function useSshSession({
 
   const disconnect = useCallback(() => {
     SshClient.disconnect(sessionId).catch(() => {});
-    setStatus("disconnected");
   }, [sessionId]);
 
   return { status, error, write, disconnect };

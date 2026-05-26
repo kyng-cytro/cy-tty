@@ -11,6 +11,7 @@ import {
   Button,
   HelperText,
   SegmentedButtons,
+  Switch,
   Text,
   TextInput,
   useTheme,
@@ -69,6 +70,7 @@ export const ConnectionSheet = forwardRef<
   const [showPasteArea, setShowPasteArea] = useState(false);
   const [pemText, setPemText] = useState("");
   const [importingKey, setImportingKey] = useState(false);
+  const [locked, setLocked] = useState(editProfile?.locked ?? false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
   const [resetKey, setResetKey] = useState(0);
@@ -82,6 +84,7 @@ export const ConnectionSheet = forwardRef<
     passphraseRef.current = editProfile?.keyPassphrase ?? "";
     setAuthMethod(editProfile?.authMethod ?? "none");
     setSelectedKeyId(editProfile?.privateKeyId ?? null);
+    setLocked(editProfile?.locked ?? false);
     setShowPassword(false);
     setShowPasteArea(false);
     setPemText("");
@@ -175,6 +178,7 @@ export const ConnectionSheet = forwardRef<
             ...(keyPassphrase ? { keyPassphrase } : {}),
           }
         : {}),
+      locked,
       createdAt: editProfile?.createdAt ?? Date.now(),
       lastConnected: editProfile?.lastConnected,
     });
@@ -437,6 +441,32 @@ export const ConnectionSheet = forwardRef<
             </View>
           )}
 
+          <Pressable
+            onPress={() => setLocked((v) => !v)}
+            style={[styles.lockRow, { borderColor: theme.colors.outline }]}
+          >
+            <MaterialCommunityIcons
+              name={locked ? "lock" : "lock-open-outline"}
+              size={20}
+              color={locked ? theme.colors.primary : theme.colors.onSurfaceVariant}
+            />
+            <View style={styles.lockText}>
+              <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>
+                Require device unlock
+              </Text>
+              <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                {locked
+                  ? "Fingerprint or PIN required before connecting"
+                  : "Anyone can connect with this profile"}
+              </Text>
+            </View>
+            <Switch
+              value={locked}
+              onValueChange={setLocked}
+              color={theme.colors.primary}
+            />
+          </Pressable>
+
           <Button
             mode="contained"
             onPress={handleSave}
@@ -480,6 +510,17 @@ const styles = StyleSheet.create({
   importBtn: { flex: 1 },
   pemInput: { minHeight: 120, fontFamily: "monospace" },
   importConfirm: { marginTop: 4 },
-  saveBtn: { marginTop: 24, borderRadius: 12 },
+  lockRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  lockText: { flex: 1, gap: 2 },
+  saveBtn: { marginTop: 12, borderRadius: 12 },
   saveBtnContent: { paddingVertical: 6 },
 });

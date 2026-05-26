@@ -10,6 +10,7 @@ export interface SshProfile {
   password?: string;
   privateKeyId?: string;
   keyPassphrase?: string;
+  locked?: boolean;
   lastConnected?: number;
   createdAt: number;
 }
