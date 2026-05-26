@@ -64,8 +64,6 @@ export const GlobalSearchSheet = forwardRef<
 ) {
   const theme = useTheme();
 
-  // Uncontrolled: ref tracks the raw text so the input never re-renders from
-  // state changes. A short debounce fires the filter state update separately.
   const queryRef = useRef("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [filterQuery, setFilterQuery] = useState("");

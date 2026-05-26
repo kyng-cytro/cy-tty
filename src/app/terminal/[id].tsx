@@ -41,8 +41,6 @@ import {
   CONTENT_PADDING_TOP,
 } from "@/hooks/use-terminal-size";
 
-// Ctrl: a-z → \x01-\x1a; a handful of punctuation; arrow/tab escape sequences.
-// Alt: prepend ESC to any single char or remap arrow sequences.
 function applyModifier(data: string, mod: "ctrl" | "alt"): string {
   if (mod === "ctrl") {
     if (data.length === 1) {
@@ -248,8 +246,6 @@ export default function TerminalScreen() {
     });
   }, []);
 
-  // Single write entry-point: applies the active modifier then clears it.
-  // Both toolbar key presses and soft-keyboard chars funnel through here.
   const write = useCallback(
     (data: string) => {
       const mod = modifierRef.current;

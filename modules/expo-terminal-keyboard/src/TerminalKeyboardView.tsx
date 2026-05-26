@@ -25,8 +25,6 @@ export function TerminalKeyboardView({ focused, onInput }: TerminalKeyboardViewP
 const styles = StyleSheet.create({
   hidden: {
     position: 'absolute',
-    // 1×1 px so Android considers it "visible" and grants focus;
-    // opacity 0 keeps it invisible to the user
     width: 1,
     height: 1,
     opacity: 0,

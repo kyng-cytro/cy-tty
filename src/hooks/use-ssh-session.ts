@@ -27,16 +27,9 @@ export interface UseSshSessionResult {
   disconnect: () => void;
 }
 
-/**
- * Strip Java class prefixes and stack-trace lines from native SSH errors
- * so only the human-readable message is shown in the UI.
- * e.g. "com.jcraft.jsch.JSchException: Auth fail\n\tat ..." → "Auth fail"
- */
 function extractMessage(err: unknown): string {
   const raw = err instanceof Error ? err.message : String(err);
-  // Take only the first line (everything after the first \n is a stack frame)
   const firstLine = raw.split('\n')[0].trim();
-  // Strip a leading Java-style class path:  "com.foo.SomeException: the message"
   const colonIdx = firstLine.lastIndexOf(': ');
   if (colonIdx !== -1 && firstLine.slice(0, colonIdx).includes('.')) {
     return firstLine.slice(colonIdx + 2) || 'Connection failed';
@@ -58,13 +51,11 @@ export function useSshSession({
   const [status, setStatus] = useState<SshSessionStatus>('idle');
   const [error, setError] = useState<string | null>(null);
 
-  // Keep a stable ref to onData so we never need to re-subscribe
   const onDataRef = useRef(onData);
   useEffect(() => {
     onDataRef.current = onData;
   }, [onData]);
 
-  // Track live cols/rows for resize without re-triggering the connect effect
   const colsRef = useRef(cols);
   const rowsRef = useRef(rows);
 
@@ -112,8 +103,6 @@ export function useSshSession({
       closeSub.remove();
       SshClient.disconnect().catch(() => {});
     };
-    // Intentionally omitted: host/port/username/password — these are route
-    // params that never change while the screen is mounted.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
