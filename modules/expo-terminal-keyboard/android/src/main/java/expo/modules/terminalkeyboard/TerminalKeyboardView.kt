@@ -30,9 +30,19 @@ class TerminalKeyboardView(context: Context, appContext: AppContext) : ExpoView(
   init {
     isFocusable = true
     isFocusableInTouchMode = true
-    // Non-zero so Android's window manager considers the view layout-visible
     minimumWidth = 1
     minimumHeight = 1
+  }
+
+  // React Native's layout engine can round sub-pixel sizes to 0. Override
+  // onMeasure so this view always reports at least 1×1 px — Android refuses
+  // requestFocus() on zero-area views regardless of isFocusable.
+  override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+    super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+    if (measuredWidth == 0 || measuredHeight == 0) {
+      Log.d(TAG, "onMeasure: forcing 1×1 (was ${measuredWidth}×${measuredHeight})")
+      setMeasuredDimension(maxOf(1, measuredWidth), maxOf(1, measuredHeight))
+    }
   }
 
   // ── Public API (called from Expo prop setter) ──────────────────────────────
@@ -45,10 +55,11 @@ class TerminalKeyboardView(context: Context, appContext: AppContext) : ExpoView(
       if (focused) {
         val focusResult = requestFocus()
         Log.d(TAG, "requestFocus() returned=$focusResult  isFocused=$isFocused  isAttachedToWindow=$isAttachedToWindow  w=${width}x${height}")
-        showIme()
+        showIme(allowToggleFallback = true)
         mainHandler.postDelayed({
           Log.d(TAG, "postDelayed retry: wantKeyboard=$wantKeyboard  isFocused=$isFocused")
-          if (wantKeyboard) showIme()
+          // No toggleSoftInput here — calling it while keyboard is open would close it
+          if (wantKeyboard) showIme(allowToggleFallback = false)
         }, 300)
       } else {
         hideIme()
@@ -64,17 +75,16 @@ class TerminalKeyboardView(context: Context, appContext: AppContext) : ExpoView(
 
   /**
    * Show the soft keyboard.
-   * SHOW_FORCED bypasses the "implicit" heuristic that suppresses the IME
-   * when the view has no size or is not the "expected" text editor.
-   * We fall back to toggleSoftInput if the direct call returns false, which
-   * can happen on some OEM ROMs where showSoftInput is gated on window focus.
+   * @param allowToggleFallback Only true on the FIRST attempt. toggleSoftInput
+   *   is idempotent-open but calling it a second time while the keyboard is
+   *   already visible will close it — so the retry must never use it.
    */
-  private fun showIme() {
+  private fun showIme(allowToggleFallback: Boolean = false) {
     val m = imm()
     val shown = m.showSoftInput(this, InputMethodManager.SHOW_FORCED)
-    Log.d(TAG, "showSoftInput() returned=$shown  isFocused=$isFocused  windowToken=$windowToken")
-    if (!shown) {
-      Log.d(TAG, "showSoftInput failed — falling back to toggleSoftInput")
+    Log.d(TAG, "showSoftInput() returned=$shown  isFocused=$isFocused  fallback=$allowToggleFallback")
+    if (!shown && allowToggleFallback) {
+      Log.d(TAG, "showSoftInput failed — using toggleSoftInput (first attempt only)")
       @Suppress("DEPRECATION")
       m.toggleSoftInput(InputMethodManager.SHOW_FORCED, InputMethodManager.HIDE_IMPLICIT_ONLY)
     }
@@ -95,7 +105,7 @@ class TerminalKeyboardView(context: Context, appContext: AppContext) : ExpoView(
   override fun onFocusChanged(gainFocus: Boolean, direction: Int, previouslyFocusedRect: Rect?) {
     super.onFocusChanged(gainFocus, direction, previouslyFocusedRect)
     Log.d(TAG, "onFocusChanged(gainFocus=$gainFocus)  wantKeyboard=$wantKeyboard")
-    if (gainFocus && wantKeyboard) showIme()
+    if (gainFocus && wantKeyboard) showIme(allowToggleFallback = false)
   }
 
   override fun onCreateInputConnection(outAttrs: EditorInfo): InputConnection {
