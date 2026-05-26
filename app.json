@@ -8,7 +8,7 @@
     "scheme": "cytty",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "bundleIdentifier": "com.anonymous.cytty"
+      "bundleIdentifier": "com.cytro.cytty"
     },
     "android": {
       "adaptiveIcon": {
@@ -16,7 +16,7 @@
         "foregroundImage": "./assets/images/android-icon-foreground.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.cytty"
+      "package": "com.cytro.cytty"
     },
     "plugins": [
       "expo-router",
@@ -39,6 +39,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "8a15f3ba-dfe0-46cc-8eb1-ff676fc178b1"
+      }
+    },
+    "owner": "cytro"
   }
 }

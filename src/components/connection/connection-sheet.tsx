@@ -183,7 +183,7 @@ export const ConnectionSheet = forwardRef<
       lastConnected: editProfile?.lastConnected,
     });
     (ref as React.RefObject<BottomSheetModal>)?.current?.dismiss();
-  }, [authMethod, selectedKeyId, editProfile, onSave, ref]);
+  }, [authMethod, selectedKeyId, locked, editProfile, onSave, ref]);
 
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
