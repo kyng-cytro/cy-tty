@@ -21,7 +21,7 @@ import {
 } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 import { KeyStore, type KeyMeta } from '@/core/keys/key-store';
 import { KnownHosts, type KnownHost } from '@/core/keys/known-hosts';
@@ -47,7 +47,13 @@ function SshKeysSection() {
     });
     if (result.canceled || !result.assets?.[0]) return;
     try {
-      const pem = await FileSystem.readAsStringAsync(result.assets[0].uri);
+      let uri = result.assets[0].uri;
+      if (!uri.startsWith("file://")) {
+        const dest = (FileSystem.cacheDirectory ?? "") + `picked_key_${Date.now()}.pem`;
+        await FileSystem.copyAsync({ from: uri, to: dest });
+        uri = dest;
+      }
+      const pem = await FileSystem.readAsStringAsync(uri);
       const name = result.assets[0].name ?? `Key ${keys.length + 1}`;
       await KeyStore.import(pem.trim(), name.replace(/\.[^.]+$/, ''));
       await reload();
@@ -101,23 +107,21 @@ function SshKeysSection() {
         ) : (
           keys.map((k, i) => (
             <View key={k.id}>
-              <List.Item
-                title={k.label}
-                description={`Added ${new Date(k.createdAt).toLocaleDateString()}`}
-                left={() => (
-                  <MaterialCommunityIcons
-                    name="key-variant" size={22} color={theme.colors.secondary} style={styles.listIcon}
-                  />
-                )}
-                right={() => (
-                  <IconButton
-                    icon="delete-outline" size={18} iconColor={theme.colors.error}
-                    onPress={() => handleDelete(k)} style={{ margin: 0 }}
-                  />
-                )}
-                titleStyle={{ color: theme.colors.onSurface }}
-                descriptionStyle={{ color: theme.colors.onSurfaceVariant }}
-              />
+              <View style={styles.itemRow}>
+                <MaterialCommunityIcons
+                  name="key-variant" size={22} color={theme.colors.secondary} style={styles.listIcon}
+                />
+                <View style={styles.itemText}>
+                  <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>{k.label}</Text>
+                  <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                    {`Added ${new Date(k.createdAt).toLocaleDateString()}`}
+                  </Text>
+                </View>
+                <IconButton
+                  icon="delete-outline" size={18} iconColor={theme.colors.error}
+                  onPress={() => handleDelete(k)} style={styles.itemAction}
+                />
+              </View>
               {i < keys.length - 1 && <Divider />}
             </View>
           ))
@@ -180,24 +184,21 @@ function KnownHostsSection() {
         ) : (
           hosts.map((h, i) => (
             <View key={h.host}>
-              <List.Item
-                title={h.host}
-                description={`${h.algorithm}  ·  ${h.fingerprint.slice(0, 32)}…`}
-                left={() => (
-                  <MaterialCommunityIcons
-                    name="shield-check" size={22} color={theme.colors.primary} style={styles.listIcon}
-                  />
-                )}
-                right={() => (
-                  <IconButton
-                    icon="delete-outline" size={18} iconColor={theme.colors.error}
-                    onPress={() => handleRemove(h)} style={{ margin: 0 }}
-                  />
-                )}
-                titleStyle={{ color: theme.colors.onSurface }}
-                descriptionStyle={{ color: theme.colors.onSurfaceVariant }}
-                descriptionNumberOfLines={1}
-              />
+              <View style={styles.itemRow}>
+                <MaterialCommunityIcons
+                  name="shield-check" size={22} color={theme.colors.primary} style={styles.listIcon}
+                />
+                <View style={styles.itemText}>
+                  <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>{h.host}</Text>
+                  <Text variant="labelSmall" numberOfLines={1} style={{ color: theme.colors.onSurfaceVariant }}>
+                    {`${h.algorithm}  ·  ${h.fingerprint.slice(0, 32)}…`}
+                  </Text>
+                </View>
+                <IconButton
+                  icon="delete-outline" size={18} iconColor={theme.colors.error}
+                  onPress={() => handleRemove(h)} style={styles.itemAction}
+                />
+              </View>
               {i < hosts.length - 1 && <Divider />}
             </View>
           ))
@@ -526,6 +527,22 @@ const styles = StyleSheet.create({
   emptyListItem: {
     paddingHorizontal: 8,
     paddingVertical: 4,
+  },
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 12,
+    paddingRight: 4,
+    paddingVertical: 10,
+    gap: 10,
+  },
+  itemText: {
+    flex: 1,
+    gap: 2,
+  },
+  itemAction: {
+    margin: 0,
+    marginRight: 0,
   },
   settingRow: {
     flexDirection: 'row',

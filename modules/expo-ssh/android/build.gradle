@@ -18,6 +18,7 @@ android {
 }
 
 dependencies {
-  // JSch — battle-tested Java SSH2 implementation, works on Android
-  implementation 'com.jcraft:jsch:0.1.55'
+  // mwiede/jsch — maintained JSch fork, same com.jcraft.jsch package,
+  // adds OpenSSH private key format support (ed25519, ECDSA, RSA new-format)
+  implementation 'com.github.mwiede:jsch:0.2.19'
 }

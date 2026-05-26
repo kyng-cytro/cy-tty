@@ -13,8 +13,8 @@ import expo.modules.kotlin.AppContext
 import expo.modules.kotlin.viewevent.EventDispatcher
 import expo.modules.kotlin.views.ExpoView
 
-private const val ESC = ""
-private const val DEL = ""
+private const val ESC = ""
+private const val DEL = ""
 
 // ExpoView (→ ReactViewGroup) cannot be the IME target: React Native's focus management
 // returns false from requestFocus() on ViewGroups. We embed a plain View child that has
@@ -76,6 +76,11 @@ class TerminalKeyboardView(context: Context, appContext: AppContext) : ExpoView(
     }
 
     override fun deleteSurroundingText(beforeLength: Int, afterLength: Int): Boolean {
+      repeat(beforeLength) { dispatchInput(DEL) }
+      return true
+    }
+
+    override fun deleteSurroundingTextInCodePoints(beforeLength: Int, afterLength: Int): Boolean {
       repeat(beforeLength) { dispatchInput(DEL) }
       return true
     }
