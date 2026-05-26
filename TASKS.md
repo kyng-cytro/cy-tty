@@ -43,10 +43,10 @@
 
 ## 🧠 Terminal Core (JS)
 
-- [ ] `src/core/terminal/types.ts` — `TerminalCell`, `TerminalState`, `TerminalCursor`
-- [ ] `src/core/terminal/grid.ts` — grid utilities (create, apply delta, diff)
-- [ ] `src/hooks/use-terminal.ts` — apply VT deltas to React state
-- [ ] `src/hooks/use-terminal-size.ts` — cols/rows from screen + font metrics
+- [x] `src/core/terminal/types.ts` — re-exports TerminalCell/State/Cursor/Delta from expo-ghostty-vt
+- [x] `src/core/terminal/grid.ts` — createEmptyState/Grid/Cell, applyDelta, ANSI_256 palette, resolveColor/resolveCellColors
+- [x] `src/hooks/use-terminal.ts` — GhosttyVt lifecycle, delta→state, dirtyRowsRef, processBytes
+- [x] `src/hooks/use-terminal-size.ts` — cols/rows from useWindowDimensions + safe area + toolbar height
 
 ---
 
