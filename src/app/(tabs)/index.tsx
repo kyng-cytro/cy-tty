@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ConnectionSheet } from "@/components/connection/connection-sheet";
+import { requireDeviceAuth } from "@/core/auth/require-device-auth";
 import { DeviceCard } from "@/components/connection/device-card";
 import { ProfileCard } from "@/components/connection/profile-card";
 import { GlobalSearchSheet } from "@/components/search/global-search-sheet";
@@ -56,7 +57,11 @@ export default function ConnectScreen() {
   }, [sheetOpen, searchOpen]);
 
   const launchSession = useCallback(
-    (profile: SshProfile) => {
+    async (profile: SshProfile) => {
+      if (profile.locked) {
+        const ok = await requireDeviceAuth(`Unlock to connect to ${profile.label}`);
+        if (!ok) return;
+      }
       void touch(profile.id);
       const sessionId = create(profile);
       router.push({ pathname: "/terminal/[id]", params: { id: sessionId } });

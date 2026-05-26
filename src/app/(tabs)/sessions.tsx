@@ -9,6 +9,7 @@ import {
   type LiveSession,
 } from "@/core/sessions/session-manager";
 import { SwipeableRow } from "@/components/common/swipeable-row";
+import { requireDeviceAuth } from "@/core/auth/require-device-auth";
 import type { SshSessionStatus } from "@/hooks/use-ssh-session";
 
 function useStatusColors(): Record<SshSessionStatus, string> {
@@ -41,7 +42,11 @@ function SessionRow({ session }: { session: LiveSession }) {
     session.status === "error" ||
     session.status === "idle";
 
-  const handlePress = () => {
+  const handlePress = async () => {
+    if (session.profile.locked) {
+      const ok = await requireDeviceAuth(`Unlock to connect to ${session.profile.label}`);
+      if (!ok) return;
+    }
     if (canReconnect) {
       destroy(session.id);
       const newId = create(session.profile);

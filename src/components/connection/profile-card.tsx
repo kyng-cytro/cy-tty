@@ -103,13 +103,30 @@ export function ProfileCard({
               {profile.username ? `${profile.username}@` : ""}
               {profile.host}:{profile.port}
             </Text>
-            <Text
-              variant="labelSmall"
-              style={{ color: theme.colors.onSurfaceVariant, opacity: 0.7 }}
-            >
-              {formatLastConnected(profile.lastConnected)}
-              {profile.authMethod === "key" && "  🔑"}
-            </Text>
+            <View style={styles.metaRow}>
+              <Text
+                variant="labelSmall"
+                style={{ color: theme.colors.onSurfaceVariant, opacity: 0.7 }}
+              >
+                {formatLastConnected(profile.lastConnected)}
+              </Text>
+              {profile.authMethod === "key" && (
+                <MaterialCommunityIcons
+                  name="key-variant"
+                  size={12}
+                  color={theme.colors.onSurfaceVariant}
+                  style={{ opacity: 0.6 }}
+                />
+              )}
+              {profile.locked && (
+                <MaterialCommunityIcons
+                  name="lock"
+                  size={12}
+                  color={theme.colors.primary}
+                  style={{ opacity: 0.8 }}
+                />
+              )}
+            </View>
           </View>
 
           <MaterialCommunityIcons
@@ -138,5 +155,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 12,
     paddingVertical: 10,
+  },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
   },
 });
