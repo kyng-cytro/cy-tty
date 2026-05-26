@@ -5,6 +5,7 @@ import android.graphics.Rect
 import android.os.Handler
 import android.os.Looper
 import android.text.InputType
+import android.util.Log
 import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.BaseInputConnection
@@ -16,6 +17,7 @@ import expo.modules.kotlin.viewevent.EventDispatcher
 import expo.modules.kotlin.views.ExpoView
 
 private const val ESC = ""
+private const val TAG = "CyTTY-Input"
 
 class TerminalKeyboardView(context: Context, appContext: AppContext) : ExpoView(context, appContext) {
 
@@ -79,7 +81,10 @@ class TerminalKeyboardView(context: Context, appContext: AppContext) : ExpoView(
     }
   }
 
-  private fun dispatchInput(data: String) = onInput(mapOf("data" to data))
+  private fun dispatchInput(data: String) {
+    Log.d(TAG, "dispatch: ${data.map { it.code }}")
+    onInput(mapOf("data" to data))
+  }
 
   inner class TerminalInputConnection(view: View) : BaseInputConnection(view, false) {
 
@@ -88,17 +93,20 @@ class TerminalKeyboardView(context: Context, appContext: AppContext) : ExpoView(
 
     override fun commitText(text: CharSequence?, newCursorPosition: Int): Boolean {
       val str = text?.toString() ?: return true
+      Log.d(TAG, "commitText: ${str.map { it.code }}")
       dispatchInput(if (str == "\n") "\r" else str)
       return true
     }
 
     override fun deleteSurroundingText(beforeLength: Int, afterLength: Int): Boolean {
+      Log.d(TAG, "deleteSurroundingText: before=$beforeLength after=$afterLength")
       repeat(beforeLength) { dispatchInput("") }
       return true
     }
 
     override fun sendKeyEvent(event: KeyEvent): Boolean {
       if (event.action != KeyEvent.ACTION_DOWN) return super.sendKeyEvent(event)
+      Log.d(TAG, "sendKeyEvent: keyCode=${event.keyCode} unicodeChar=${event.unicodeChar} ctrl=${event.isCtrlPressed}")
 
       // Ctrl combos
       if (event.isCtrlPressed) {

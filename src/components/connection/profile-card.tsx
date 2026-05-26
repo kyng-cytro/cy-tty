@@ -42,62 +42,61 @@ export function ProfileCard({ profile, onConnect, onEdit, onDelete }: ProfileCar
   const emoji = osEmoji(profile.label, profile.host);
 
   return (
-    <Menu
-      visible={menuVisible}
-      onDismiss={() => setMenuVisible(false)}
-      anchor={
-        <Pressable
-          onPress={() => onConnect(profile)}
-          onLongPress={() => setMenuVisible(true)}
-          android_ripple={{ color: theme.colors.primary + "22" }}
+    <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
+      <Pressable
+        onPress={() => onConnect(profile)}
+        onLongPress={() => setMenuVisible(true)}
+        android_ripple={{ color: theme.colors.primary + "22", borderless: false }}
+        style={styles.pressable}
+      >
+        <View style={styles.emojiWrap}>
+          <Text style={styles.emoji}>{emoji}</Text>
+        </View>
+
+        <View style={styles.info}>
+          <Text variant="titleSmall" numberOfLines={1} style={{ color: theme.colors.onSurface }}>
+            {profile.label}
+          </Text>
+          <Text variant="bodySmall" numberOfLines={1} style={{ color: theme.colors.onSurfaceVariant }}>
+            {profile.username ? `${profile.username}@` : ""}{profile.host}:{profile.port}
+          </Text>
+          <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, opacity: 0.7 }}>
+            {formatLastConnected(profile.lastConnected)}
+            {profile.authMethod === "key" && "  🔑"}
+          </Text>
+        </View>
+
+        <MaterialCommunityIcons
+          name="chevron-right"
+          size={20}
+          color={theme.colors.onSurfaceVariant}
+          style={{ opacity: 0.4 }}
+        />
+
+        {/* Invisible anchor at bottom-right — Menu positions relative to this */}
+        <Menu
+          visible={menuVisible}
+          onDismiss={() => setMenuVisible(false)}
+          anchor={<View style={styles.menuAnchor} />}
         >
-          <Card
-            style={[styles.card, { backgroundColor: theme.colors.surface }]}
-            contentStyle={styles.cardContent}
-          >
-            <View style={styles.emojiWrap}>
-              <Text style={styles.emoji}>{emoji}</Text>
-            </View>
-
-            <View style={styles.info}>
-              <Text variant="titleSmall" numberOfLines={1} style={{ color: theme.colors.onSurface }}>
-                {profile.label}
-              </Text>
-              <Text variant="bodySmall" numberOfLines={1} style={{ color: theme.colors.onSurfaceVariant }}>
-                {profile.username ? `${profile.username}@` : ""}{profile.host}:{profile.port}
-              </Text>
-              <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, opacity: 0.7 }}>
-                {formatLastConnected(profile.lastConnected)}
-                {profile.authMethod === "key" && "  🔑"}
-              </Text>
-            </View>
-
-            <MaterialCommunityIcons
-              name="chevron-right"
-              size={20}
-              color={theme.colors.onSurfaceVariant}
-              style={{ opacity: 0.4 }}
+          {onEdit && (
+            <Menu.Item
+              leadingIcon="pencil-outline"
+              onPress={() => { setMenuVisible(false); onEdit(profile); }}
+              title="Edit"
             />
-          </Card>
-        </Pressable>
-      }
-    >
-      {onEdit && (
-        <Menu.Item
-          leadingIcon="pencil-outline"
-          onPress={() => { setMenuVisible(false); onEdit(profile); }}
-          title="Edit"
-        />
-      )}
-      {onDelete && (
-        <Menu.Item
-          leadingIcon="delete-outline"
-          onPress={() => { setMenuVisible(false); onDelete(profile); }}
-          title="Delete"
-          titleStyle={{ color: theme.colors.error }}
-        />
-      )}
-    </Menu>
+          )}
+          {onDelete && (
+            <Menu.Item
+              leadingIcon="delete-outline"
+              onPress={() => { setMenuVisible(false); onDelete(profile); }}
+              title="Delete"
+              titleStyle={{ color: theme.colors.error }}
+            />
+          )}
+        </Menu>
+      </Pressable>
+    </Card>
   );
 }
 
@@ -106,8 +105,9 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginVertical: 6,
     borderRadius: 12,
+    overflow: "hidden",
   },
-  cardContent: {
+  pressable: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 12,
@@ -122,5 +122,13 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 1,
     paddingHorizontal: 8,
+  },
+  // Sits at the trailing edge; Menu measures its screen position for placement
+  menuAnchor: {
+    position: "absolute",
+    right: 0,
+    bottom: 0,
+    width: 1,
+    height: 1,
   },
 });
