@@ -35,6 +35,7 @@ function SessionRow({ session }: { session: LiveSession }) {
   const { destroy, create } = useSessionManager();
   const statusColors = useStatusColors();
   const [menuVisible, setMenuVisible] = useState(false);
+  const [menuAnchor, setMenuAnchor] = useState({ x: 0, y: 0 });
 
   const dotColor = statusColors[session.status];
   const canReconnect =
@@ -56,7 +57,10 @@ function SessionRow({ session }: { session: LiveSession }) {
     <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
       <Pressable
         onPress={handlePress}
-        onLongPress={() => setMenuVisible(true)}
+        onLongPress={(e) => {
+          setMenuAnchor({ x: e.nativeEvent.pageX, y: e.nativeEvent.pageY });
+          setMenuVisible(true);
+        }}
         android_ripple={{ color: theme.colors.primary + "22", borderless: false }}
         style={styles.pressable}
       >
@@ -84,26 +88,27 @@ function SessionRow({ session }: { session: LiveSession }) {
           style={{ opacity: 0.4 }}
         />
 
-        <Menu
-          visible={menuVisible}
-          onDismiss={() => setMenuVisible(false)}
-          anchor={<View style={styles.menuAnchor} />}
-        >
-          {canReconnect && (
-            <Menu.Item
-              leadingIcon="refresh"
-              onPress={() => { setMenuVisible(false); handlePress(); }}
-              title="Reconnect"
-            />
-          )}
-          <Menu.Item
-            leadingIcon="close"
-            onPress={() => { setMenuVisible(false); destroy(session.id); }}
-            title="Disconnect"
-            titleStyle={{ color: theme.colors.error }}
-          />
-        </Menu>
       </Pressable>
+
+      <Menu
+        visible={menuVisible}
+        onDismiss={() => setMenuVisible(false)}
+        anchor={menuAnchor}
+      >
+        {canReconnect && (
+          <Menu.Item
+            leadingIcon="refresh"
+            onPress={() => { setMenuVisible(false); handlePress(); }}
+            title="Reconnect"
+          />
+        )}
+        <Menu.Item
+          leadingIcon="close"
+          onPress={() => { setMenuVisible(false); destroy(session.id); }}
+          title="Disconnect"
+          titleStyle={{ color: theme.colors.error }}
+        />
+      </Menu>
     </Card>
   );
 }
@@ -183,13 +188,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 14,
     paddingVertical: 10,
-  },
-  menuAnchor: {
-    position: "absolute",
-    right: 0,
-    bottom: 0,
-    width: 1,
-    height: 1,
   },
   dot: {
     width: 10,

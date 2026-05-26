@@ -38,6 +38,7 @@ export interface ProfileCardProps {
 
 export function ProfileCard({ profile, onConnect, onEdit, onDelete }: ProfileCardProps) {
   const theme = useTheme();
+  const [menuAnchor, setMenuAnchor] = useState({ x: 0, y: 0 });
   const [menuVisible, setMenuVisible] = useState(false);
   const emoji = osEmoji(profile.label, profile.host);
 
@@ -45,7 +46,10 @@ export function ProfileCard({ profile, onConnect, onEdit, onDelete }: ProfileCar
     <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
       <Pressable
         onPress={() => onConnect(profile)}
-        onLongPress={() => setMenuVisible(true)}
+        onLongPress={(e) => {
+          setMenuAnchor({ x: e.nativeEvent.pageX, y: e.nativeEvent.pageY });
+          setMenuVisible(true);
+        }}
         android_ripple={{ color: theme.colors.primary + "22", borderless: false }}
         style={styles.pressable}
       >
@@ -72,30 +76,29 @@ export function ProfileCard({ profile, onConnect, onEdit, onDelete }: ProfileCar
           color={theme.colors.onSurfaceVariant}
           style={{ opacity: 0.4 }}
         />
-
-        {/* Invisible anchor at bottom-right — Menu positions relative to this */}
-        <Menu
-          visible={menuVisible}
-          onDismiss={() => setMenuVisible(false)}
-          anchor={<View style={styles.menuAnchor} />}
-        >
-          {onEdit && (
-            <Menu.Item
-              leadingIcon="pencil-outline"
-              onPress={() => { setMenuVisible(false); onEdit(profile); }}
-              title="Edit"
-            />
-          )}
-          {onDelete && (
-            <Menu.Item
-              leadingIcon="delete-outline"
-              onPress={() => { setMenuVisible(false); onDelete(profile); }}
-              title="Delete"
-              titleStyle={{ color: theme.colors.error }}
-            />
-          )}
-        </Menu>
       </Pressable>
+
+      <Menu
+        visible={menuVisible}
+        onDismiss={() => setMenuVisible(false)}
+        anchor={menuAnchor}
+      >
+        {onEdit && (
+          <Menu.Item
+            leadingIcon="pencil-outline"
+            onPress={() => { setMenuVisible(false); onEdit(profile); }}
+            title="Edit"
+          />
+        )}
+        {onDelete && (
+          <Menu.Item
+            leadingIcon="delete-outline"
+            onPress={() => { setMenuVisible(false); onDelete(profile); }}
+            title="Delete"
+            titleStyle={{ color: theme.colors.error }}
+          />
+        )}
+      </Menu>
     </Card>
   );
 }
@@ -122,13 +125,5 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 1,
     paddingHorizontal: 8,
-  },
-  // Sits at the trailing edge; Menu measures its screen position for placement
-  menuAnchor: {
-    position: "absolute",
-    right: 0,
-    bottom: 0,
-    width: 1,
-    height: 1,
   },
 });
