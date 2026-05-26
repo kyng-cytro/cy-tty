@@ -1,7 +1,8 @@
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { router } from "expo-router";
-import { StyleSheet, View } from "react-native";
-import { Badge, Card, IconButton, Text, useTheme } from "react-native-paper";
+import { useState } from "react";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Badge, Card, Menu, Text, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
@@ -33,15 +34,15 @@ function SessionRow({ session }: { session: LiveSession }) {
   const theme = useTheme();
   const { destroy, create } = useSessionManager();
   const statusColors = useStatusColors();
-  const dotColor = statusColors[session.status];
-  const statusLabel = STATUS_LABEL[session.status];
+  const [menuVisible, setMenuVisible] = useState(false);
 
+  const dotColor = statusColors[session.status];
   const canReconnect =
     session.status === "disconnected" ||
     session.status === "error" ||
     session.status === "idle";
 
-  const handleResume = () => {
+  const handlePress = () => {
     if (canReconnect) {
       destroy(session.id);
       const newId = create(session.profile);
@@ -51,62 +52,61 @@ function SessionRow({ session }: { session: LiveSession }) {
     }
   };
 
-  const handleDisconnect = () => {
-    destroy(session.id);
-  };
-
   return (
-    <Card
-      style={[styles.sessionCard, { backgroundColor: theme.colors.surface }]}
-      contentStyle={styles.sessionContent}
+    <Menu
+      visible={menuVisible}
+      onDismiss={() => setMenuVisible(false)}
+      anchor={
+        <Pressable
+          onPress={handlePress}
+          onLongPress={() => setMenuVisible(true)}
+          android_ripple={{ color: theme.colors.primary + "22" }}
+        >
+          <Card
+            style={[styles.card, { backgroundColor: theme.colors.surface }]}
+            contentStyle={styles.cardContent}
+          >
+            <View style={[styles.dot, { backgroundColor: dotColor }]} />
+
+            <View style={styles.info}>
+              <Text variant="titleSmall" numberOfLines={1} style={{ color: theme.colors.onSurface }}>
+                {session.profile.label}
+              </Text>
+              <Text variant="bodySmall" numberOfLines={1} style={{ color: theme.colors.onSurfaceVariant }}>
+                {session.profile.username ? `${session.profile.username}@` : ""}
+                {session.profile.host}:{session.profile.port}
+              </Text>
+              <Text variant="labelSmall" style={{ color: dotColor, opacity: 0.9 }}>
+                {STATUS_LABEL[session.status]}
+                {session.status === "connected" && `  ·  ${session.cols}×${session.rows}`}
+                {session.status === "error" && session.error ? `  —  ${session.error}` : ""}
+              </Text>
+            </View>
+
+            <MaterialCommunityIcons
+              name="chevron-right"
+              size={20}
+              color={theme.colors.onSurfaceVariant}
+              style={{ opacity: 0.4 }}
+            />
+          </Card>
+        </Pressable>
+      }
     >
-      <View style={[styles.dot, { backgroundColor: dotColor }]} />
-
-      <View style={styles.sessionInfo}>
-        <Text
-          variant="titleSmall"
-          numberOfLines={1}
-          style={{ color: theme.colors.onSurface }}
-        >
-          {session.profile.label}
-        </Text>
-        <Text
-          variant="bodySmall"
-          numberOfLines={1}
-          style={{ color: theme.colors.onSurfaceVariant }}
-        >
-          {session.profile.username ? `${session.profile.username}@` : ""}
-          {session.profile.host}:{session.profile.port}
-        </Text>
-        <Text variant="labelSmall" style={{ color: dotColor, opacity: 0.9 }}>
-          {statusLabel}
-          {session.status === "connected" &&
-            `  ·  ${session.cols}×${session.rows}`}
-          {session.status === "error" && session.error
-            ? `  —  ${session.error}`
-            : ""}
-        </Text>
-      </View>
-
-      <View style={styles.sessionActions}>
-        <IconButton
-          icon={canReconnect ? "refresh" : "play"}
-          size={20}
-          iconColor={theme.colors.primary}
-          onPress={handleResume}
-          accessibilityLabel={canReconnect ? "Reconnect" : "Resume session"}
-          style={styles.actionBtn}
+      {canReconnect && (
+        <Menu.Item
+          leadingIcon="refresh"
+          onPress={() => { setMenuVisible(false); handlePress(); }}
+          title="Reconnect"
         />
-        <IconButton
-          icon="close"
-          size={20}
-          iconColor={theme.colors.error}
-          onPress={handleDisconnect}
-          accessibilityLabel="Disconnect session"
-          style={styles.actionBtn}
-        />
-      </View>
-    </Card>
+      )}
+      <Menu.Item
+        leadingIcon="close"
+        onPress={() => { setMenuVisible(false); destroy(session.id); }}
+        title="Disconnect"
+        titleStyle={{ color: theme.colors.error }}
+      />
+    </Menu>
   );
 }
 
@@ -120,13 +120,8 @@ export default function SessionsScreen() {
       edges={["top", "left", "right"]}
       style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
-      <View
-        style={[styles.header, { borderBottomColor: theme.colors.outline }]}
-      >
-        <Text
-          variant="headlineMedium"
-          style={[styles.title, { color: theme.colors.onSurface }]}
-        >
+      <View style={[styles.header, { borderBottomColor: theme.colors.outline }]}>
+        <Text variant="headlineMedium" style={[styles.title, { color: theme.colors.onSurface }]}>
           Sessions
         </Text>
         {sessionList.length > 0 && (
@@ -138,15 +133,8 @@ export default function SessionsScreen() {
 
       {sessionList.length === 0 ? (
         <View style={styles.empty}>
-          <MaterialCommunityIcons
-            name="console-line"
-            size={64}
-            color={theme.colors.onSurfaceVariant}
-          />
-          <Text
-            variant="titleMedium"
-            style={{ color: theme.colors.onSurfaceVariant, marginTop: 16 }}
-          >
+          <MaterialCommunityIcons name="console-line" size={64} color={theme.colors.onSurfaceVariant} />
+          <Text variant="titleMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 16 }}>
             No active sessions
           </Text>
           <Text
@@ -186,12 +174,12 @@ const styles = StyleSheet.create({
     marginTop: 8,
     opacity: 0.7,
   },
-  sessionCard: {
+  card: {
     marginHorizontal: 16,
     marginVertical: 6,
     borderRadius: 12,
   },
-  sessionContent: {
+  cardContent: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 14,
@@ -203,10 +191,8 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     marginRight: 12,
   },
-  sessionInfo: {
+  info: {
     flex: 1,
     gap: 2,
   },
-  sessionActions: { flexDirection: "row" },
-  actionBtn: { margin: 0 },
 });
