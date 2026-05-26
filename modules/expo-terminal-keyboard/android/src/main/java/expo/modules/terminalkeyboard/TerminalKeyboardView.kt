@@ -1,35 +1,40 @@
 package expo.modules.terminalkeyboard
 
 import android.content.Context
+import android.text.InputType
 import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.BaseInputConnection
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.view.inputmethod.InputMethodManager
-import android.view.inputmethod.InputType
-import com.facebook.react.bridge.Arguments
-import com.facebook.react.bridge.ReactContext
-import com.facebook.react.uimanager.events.RCTEventEmitter
 import expo.modules.kotlin.AppContext
 import expo.modules.kotlin.views.ExpoView
+import expo.modules.kotlin.viewevent.EventDispatcher
 
-private const val ESC = "\u001b"
+private const val ESC = ""
 
 class TerminalKeyboardView(context: Context, appContext: AppContext) : ExpoView(context, appContext) {
+
+  val onInput by EventDispatcher<Map<String, Any>>()
 
   init {
     isFocusable = true
     isFocusableInTouchMode = true
+    // Minimum 1×1 px so Android considers the view "visible" and allows focus
+    minimumWidth = 1
+    minimumHeight = 1
   }
 
   fun setTerminalFocused(focused: Boolean) {
     if (focused) {
       requestFocus()
-      post {
-        val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-        imm.showSoftInput(this, InputMethodManager.SHOW_IMPLICIT)
-      }
+      val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+      // SHOW_FORCED works even for off-screen / zero-size views
+      post { imm.showSoftInput(this, InputMethodManager.SHOW_FORCED) }
+      // Belt-and-suspenders: retry once after 150 ms in case the first attempt
+      // fires before the window is fully attached (e.g. on first mount)
+      postDelayed({ if (isFocused) imm.showSoftInput(this, InputMethodManager.SHOW_FORCED) }, 150)
     } else {
       val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
       imm.hideSoftInputFromWindow(windowToken, 0)
@@ -46,12 +51,7 @@ class TerminalKeyboardView(context: Context, appContext: AppContext) : ExpoView(
   }
 
   private fun dispatchInput(data: String) {
-    try {
-      val params = Arguments.createMap().apply { putString("data", data) }
-      (context as? ReactContext)
-        ?.getJSModule(RCTEventEmitter::class.java)
-        ?.receiveEvent(id, "onInput", params)
-    } catch (_: Exception) {}
+    onInput(mapOf("data" to data))
   }
 
   inner class TerminalInputConnection(view: View) : BaseInputConnection(view, false) {

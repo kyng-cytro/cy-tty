@@ -1,5 +1,6 @@
 import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BackHandler, ScrollView, StyleSheet, View } from "react-native";
@@ -117,12 +118,12 @@ export default function ConnectScreen() {
         style={[styles.container, { backgroundColor: theme.colors.background }]}
       >
         <View style={[styles.header, { borderBottomColor: theme.colors.outline }]}>
-          <Text
-            variant="headlineMedium"
-            style={[styles.appName, { color: theme.colors.primary }]}
-          >
-            cy-tty
-          </Text>
+          <Image
+            source={require("../../../assets/images/icon-tp.png")}
+            style={styles.headerLogo}
+            contentFit="contain"
+            accessibilityLabel="cy-tty"
+          />
           <IconButton
             icon="magnify"
             size={22}
@@ -246,10 +247,9 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  appName: {
+  headerLogo: {
     flex: 1,
-    fontWeight: "800",
-    letterSpacing: -0.5,
+    height: 36,
   },
   progressBar: { height: 2 },
   scroll: { paddingBottom: 96 },
