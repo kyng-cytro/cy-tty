@@ -1,26 +1,9 @@
-/**
- * Terminal font definitions.
- *
- * To add a new font:
- *   1. Drop the Regular and Bold .ttf files in assets/fonts/
- *   2. Add a new entry to TERMINAL_FONTS below
- *   3. Add the require() calls to the asset map
- *
- * Font assets are statically required so Metro can bundle them.
- */
-
 export interface TerminalFont {
-  /** Unique ID used for storage. */
   id: string;
-  /** Display name shown in Settings. */
   name: string;
-  /** Short descriptor shown as subtitle. */
   description: string;
-  /** Whether ligatures are supported (informational only). */
   ligatures: boolean;
 }
-
-// ── Font definitions ──────────────────────────────────────────────────────────
 
 export const TERMINAL_FONTS: readonly TerminalFont[] = [
   {
@@ -49,14 +32,8 @@ export const TERMINAL_FONTS: readonly TerminalFont[] = [
   },
 ];
 
-// ── Asset map ─────────────────────────────────────────────────────────────────
-//
-// Each font needs Regular + Bold variants. The require() calls must be
-// statically analysable by Metro — no dynamic paths.
-
 export type FontVariant = 'regular' | 'bold';
 
-/** Return the static asset for a given font ID and variant. */
 export function getFontAsset(
   fontId: string,
   variant: FontVariant,
@@ -83,7 +60,6 @@ export function getFontAsset(
   }
 }
 
-/** Get a font definition by ID, or the default JetBrains Mono. */
 export function getFontById(id: string): TerminalFont {
   return TERMINAL_FONTS.find((f) => f.id === id) ?? TERMINAL_FONTS[0]!;
 }

@@ -1,18 +1,3 @@
-/**
- * Root layout — replaces Expo template boilerplate.
- *
- * Provider order (outermost → innermost):
- *   GestureHandlerRootView  ← required by @gorhom/bottom-sheet
- *   SessionManagerProvider  ← keeps SSH alive across navigation
- *   TerminalPreferencesProvider ← theme + font + font-size prefs
- *   PaperProvider           ← MD3 Material You theme
- *     Stack
- *
- * Note: we do NOT merge Paper + react-navigation themes — expo-router manages
- * NavigationContainer internally, so we only configure Stack screenOptions for
- * background colour and feed the pure Paper theme to PaperProvider.
- */
-
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, useColorScheme } from 'react-native';
@@ -23,13 +8,8 @@ import { useMaterial3Theme } from '@pchmn/expo-material3-theme';
 import { SessionManagerProvider } from '@/core/sessions/session-manager';
 import { TerminalPreferencesProvider } from '@/core/theme/preferences-context';
 
-// ── Component ──────────────────────────────────────────────────────────────
-
 export default function RootLayout() {
   const colorScheme = useColorScheme();
-
-  // On Android 12+ this reads the system wallpaper seed colour; on iOS / older
-  // Android it generates a scheme from the Tokyo Night blue fallback.
   const { theme: m3Theme } = useMaterial3Theme({ fallbackSourceColor: '#7aa2f7' });
 
   const theme = useMemo(
@@ -53,9 +33,7 @@ export default function RootLayout() {
                 headerTintColor: theme.colors.onSurface,
               }}
             >
-              {/* Tab group — visible in Connect / Sessions / Settings */}
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              {/* Terminal screen — full-screen, slides up over the tab bar */}
               <Stack.Screen
                 name="terminal/[id]"
                 options={{ headerShown: false, animation: 'slide_from_bottom' }}

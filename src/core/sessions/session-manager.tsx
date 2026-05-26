@@ -1,36 +1,3 @@
-/**
- * SessionManager
- *
- * Keeps SSH sessions alive even when the terminal screen is unmounted (i.e.
- * when the user navigates back to the tab bar without disconnecting).
- *
- * Architecture:
- *   SessionManagerProvider renders a hidden <SessionNode key={id} /> for each
- *   live session.  Each SessionNode owns the useSshSession + useTerminal hooks
- *   and reports its state upward via a callback ref, so the context always has
- *   fresh state without prop-drilling.
- *
- * Update loop design:
- *   SessionNode's useEffect has explicit deps so it ONLY calls onUpdate when
- *   status / error / terminalState / cols / rows actually change.  Function
- *   refs (write, disconnect, resize) are forwarded through stable wrappers so
- *   they are never listed as deps and never trigger the effect.
- *
- *   handleUpdate additionally guards with a shallow-equality check so that
- *   setEntries is only called (and SessionManagerProvider only re-renders)
- *   when something genuinely changed — preventing the update→re-render→update
- *   infinite loop.
- *
- * Usage:
- *   const { create, destroy, get, sessions } = useSessionManager();
- *   const id = create(profile);           // starts SSH immediately
- *   router.push('/terminal/[id]', { id });
- *
- *   // In terminal screen:
- *   const session = useSession(id);       // → LiveSession | null
- *   <TerminalCanvas state={session.terminalState} onCellSize={session.resize} />
- */
-
 import {
   createContext,
   useCallback,
@@ -48,8 +15,6 @@ import { useTerminalSize, DEFAULT_CELL_WIDTH, DEFAULT_CELL_HEIGHT } from '@/hook
 import type { TerminalState } from '@/core/terminal/types';
 import type { SshProfile } from '@/core/profiles/types';
 
-// ── Public types ────────────────────────────────────────────────────────────
-
 export interface LiveSession {
   id: string;
   profile: SshProfile;
@@ -60,25 +25,15 @@ export interface LiveSession {
   terminalState: TerminalState;
   cols: number;
   rows: number;
-  /**
-   * Called by the terminal screen's TerminalCanvas when the Skia font is
-   * measured.  Feeds the correct cell dimensions back into the session so
-   * the PTY resize is sent to the server.
-   */
   resize: (cellWidth: number, cellHeight: number) => void;
 }
 
 interface SessionManagerContextValue {
   sessions: Map<string, LiveSession>;
-  /** Start a new SSH session. Returns the session ID. */
   create: (profile: SshProfile) => string;
-  /** Tear down a session and remove it from the map. */
   destroy: (id: string) => void;
-  /** Retrieve a live session by ID. */
   get: (id: string) => LiveSession | null;
 }
-
-// ── Context ─────────────────────────────────────────────────────────────────
 
 const SessionManagerContext = createContext<SessionManagerContextValue | null>(null);
 
@@ -88,8 +43,6 @@ export function useSessionManager(): SessionManagerContextValue {
   return ctx;
 }
 
-// ── SessionNode — the invisible hook-runner ──────────────────────────────────
-
 interface SessionNodeProps {
   id: string;
   profile: SshProfile;
@@ -97,8 +50,6 @@ interface SessionNodeProps {
 }
 
 function SessionNode({ id, profile, onUpdate }: SessionNodeProps) {
-  // Cell size driven by the terminal screen once the Skia font loads.
-  // Until then we use defaults so the PTY starts with a reasonable size.
   const [cellSize, setCellSize] = useState({
     width: DEFAULT_CELL_WIDTH,
     height: DEFAULT_CELL_HEIGHT,
@@ -121,11 +72,9 @@ function SessionNode({ id, profile, onUpdate }: SessionNodeProps) {
     onData: processBytes,
   });
 
-  // ── Stable function wrappers via refs ──────────────────────────────────
   // write/disconnect come from useSshSession(useCallback([])) so they are
   // already stable, but we forward through refs so we never need to list
   // them as useEffect deps — avoiding spurious effect firings.
-
   const resizeFn = useCallback((cw: number, ch: number) => {
     setCellSize((prev) =>
       prev.width === cw && prev.height === ch ? prev : { width: cw, height: ch },
@@ -136,19 +85,14 @@ function SessionNode({ id, profile, onUpdate }: SessionNodeProps) {
   const disconnectRef = useRef(disconnect);
   const resizeRef    = useRef(resizeFn);
 
-  // Keep refs current on every render (no effect needed)
   writeRef.current     = write;
   disconnectRef.current = disconnect;
   resizeRef.current    = resizeFn;
 
-  // Stable forwarders with empty deps — identity never changes
   const stableWrite = useCallback((data: string) => writeRef.current(data), []);
   const stableDisconnect = useCallback(() => disconnectRef.current(), []);
   const stableResize = useCallback((cw: number, ch: number) => resizeRef.current(cw, ch), []);
 
-  // ── Push state changes up to the provider ──────────────────────────────
-  // deps: only things that carry display-meaningful data.
-  // stableWrite/stableDisconnect/stableResize are useCallback([]) — stable.
   useEffect(() => {
     onUpdate(id, {
       status,
@@ -162,10 +106,8 @@ function SessionNode({ id, profile, onUpdate }: SessionNodeProps) {
     });
   }, [id, status, error, state, cols, rows, stableWrite, stableDisconnect, stableResize, onUpdate]);
 
-  return null; // renders no UI
+  return null;
 }
-
-// ── Provider ─────────────────────────────────────────────────────────────────
 
 interface SessionEntry {
   profile: SshProfile;
@@ -180,9 +122,8 @@ function generateId(): string {
 export function SessionManagerProvider({ children }: { children: ReactNode }) {
   const [entries, setEntries] = useState<Map<string, SessionEntry>>(new Map());
 
-  // When a SessionNode reports updated state, merge it into the entry.
   // Guard: only call setEntries (which triggers a re-render) if at least one
-  // value actually changed.  Returning `prev` from the setter bails out with
+  // value actually changed. Returning `prev` from the setter bails out with
   // no re-render — this prevents the update→render→update infinite loop.
   const handleUpdate = useCallback((id: string, update: Partial<LiveSession>) => {
     setEntries((prev) => {
@@ -194,7 +135,7 @@ export function SessionManagerProvider({ children }: { children: ReactNode }) {
       const changed = keys.some(
         (k) => (update as unknown as Record<string, unknown>)[k] !== (live as unknown as Record<string, unknown>)[k],
       );
-      if (!changed) return prev; // Nothing changed — skip re-render
+      if (!changed) return prev;
 
       const next = new Map(prev);
       next.set(id, { ...entry, liveData: { ...live, ...update } });
@@ -235,7 +176,6 @@ export function SessionManagerProvider({ children }: { children: ReactNode }) {
     setEntries((prev) => {
       const entry = prev.get(id);
       if (entry) {
-        // Trigger disconnect before unmounting
         entry.liveData.disconnect();
       }
       const next = new Map(prev);
@@ -249,14 +189,12 @@ export function SessionManagerProvider({ children }: { children: ReactNode }) {
     [entries],
   );
 
-  // Build context value
   const sessions = new Map(
     Array.from(entries.entries()).map(([id, e]) => [id, e.liveData]),
   );
 
   return (
     <SessionManagerContext.Provider value={{ sessions, create, destroy, get }}>
-      {/* Invisible nodes — one per live session */}
       <View style={styles.hidden} pointerEvents="none">
         {Array.from(entries.entries()).map(([id, entry]) => (
           <SessionNode
@@ -271,8 +209,6 @@ export function SessionManagerProvider({ children }: { children: ReactNode }) {
     </SessionManagerContext.Provider>
   );
 }
-
-// ── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   hidden: {

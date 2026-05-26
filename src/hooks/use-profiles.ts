@@ -1,10 +1,3 @@
-/**
- * useProfiles — React hook for managing SSH profiles.
- *
- * Loads all profiles from SecureStore on mount.
- * Exposes CRUD helpers that keep local state in sync.
- */
-
 import { useCallback, useEffect, useState } from 'react';
 import { ProfileStorage } from '@/core/profiles/storage';
 import type { SshProfile } from '@/core/profiles/types';
@@ -17,7 +10,6 @@ export function useProfiles() {
     setLoading(true);
     try {
       const list = await ProfileStorage.loadAll();
-      // Sort by lastConnected descending
       list.sort((a, b) => (b.lastConnected ?? b.createdAt) - (a.lastConnected ?? a.createdAt));
       setProfiles(list);
     } finally {

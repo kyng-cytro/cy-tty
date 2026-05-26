@@ -1,16 +1,7 @@
-/**
- * ProfileCard — compact list item for a saved SSH profile.
- *
- *   [ 🐧/🍎/🪟/💻 ]  label          host:port
- *                       last connected  ←  connect →
- */
-
 import { StyleSheet, View } from 'react-native';
 import { Card, IconButton, Text, useTheme } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import type { SshProfile } from '@/core/profiles/types';
-
-// ── OS icon mapping ───────────────────────────────────────────────────────────
 
 type OsEmoji = '🐧' | '🍎' | '🪟' | '💻';
 
@@ -42,8 +33,6 @@ function formatLastConnected(ts?: number): string {
   return `${days}d ago`;
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
-
 export interface ProfileCardProps {
   profile: SshProfile;
   onConnect: (profile: SshProfile) => void;
@@ -60,12 +49,10 @@ export function ProfileCard({ profile, onConnect, onEdit, onDelete }: ProfileCar
       style={[styles.card, { backgroundColor: theme.colors.surface }]}
       contentStyle={styles.cardContent}
     >
-      {/* OS emoji */}
       <View style={styles.emojiWrap}>
         <Text style={styles.emoji}>{emoji}</Text>
       </View>
 
-      {/* Info block */}
       <View style={styles.info}>
         <Text
           variant="titleSmall"
@@ -90,7 +77,6 @@ export function ProfileCard({ profile, onConnect, onEdit, onDelete }: ProfileCar
         </Text>
       </View>
 
-      {/* Actions */}
       <View style={styles.actions}>
         {onEdit && (
           <IconButton
@@ -121,8 +107,6 @@ export function ProfileCard({ profile, onConnect, onEdit, onDelete }: ProfileCar
     </Card>
   );
 }
-
-// ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   card: {

@@ -8,8 +8,8 @@ import {
 import {
   forwardRef,
   useCallback,
-  useDeferredValue,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { StyleSheet, View } from "react-native";
@@ -52,105 +52,139 @@ function sessionMatches(s: LiveSession, q: string): boolean {
   return profileMatches(s.profile, q) || s.status.includes(q.toLowerCase());
 }
 
-export const GlobalSearchSheet = forwardRef<BottomSheetModal, GlobalSearchSheetProps>(
-  function GlobalSearchSheet({ profiles, sessions, scannedHosts, onConnectProfile, onConnectHost, onResumeSession }, ref) {
-    const theme = useTheme();
-    const [query, setQuery] = useState("");
-
-    // Input stays instant; filtering is deferred so typing is never blocked
-    // by expensive filter work.
-    const deferred = useDeferredValue(query.trim());
-
-    const filteredProfiles = useMemo(
-      () => (deferred ? profiles.filter((p) => profileMatches(p, deferred)) : profiles),
-      [profiles, deferred],
-    );
-
-    const filteredSessions = useMemo(
-      () => (deferred ? sessions.filter((s) => sessionMatches(s, deferred)) : sessions),
-      [sessions, deferred],
-    );
-
-    const filteredHosts = useMemo(
-      () => (deferred ? scannedHosts.filter((h) => hostMatches(h, deferred)) : scannedHosts),
-      [scannedHosts, deferred],
-    );
-
-    const renderBackdrop = useCallback(
-      (props: BottomSheetBackdropProps) => (
-        <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.5} />
-      ),
-      [],
-    );
-
-    const total = filteredProfiles.length + filteredSessions.length + filteredHosts.length;
-
-    return (
-      <BottomSheetModal
-        ref={ref}
-        snapPoints={["60%", "95%"]}
-        backgroundStyle={{ backgroundColor: theme.colors.surface }}
-        handleIndicatorStyle={{ backgroundColor: theme.colors.onSurfaceVariant }}
-        backdropComponent={renderBackdrop}
-        keyboardBehavior="interactive"
-        keyboardBlurBehavior="restore"
-      >
-        <View style={[styles.searchBar, { borderBottomColor: theme.colors.outline }]}>
-          <BottomSheetTextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Search connections, sessions, hosts…"
-            placeholderTextColor={theme.colors.onSurfaceVariant}
-            autoFocus
-            style={[styles.searchInput, { color: theme.colors.onSurface }]}
-          />
-        </View>
-
-        <BottomSheetScrollView contentContainerStyle={styles.scroll}>
-          {filteredSessions.length > 0 && (
-            <>
-              <SectionHeader label="Active Sessions" />
-              {filteredSessions.map((s) => (
-                <ProfileCard key={s.id} profile={s.profile} onConnect={() => onResumeSession(s.id)} />
-              ))}
-            </>
-          )}
-
-          {filteredProfiles.length > 0 && (
-            <>
-              <SectionHeader label="Saved Connections" />
-              {filteredProfiles.map((p) => (
-                <ProfileCard key={p.id} profile={p} onConnect={onConnectProfile} />
-              ))}
-            </>
-          )}
-
-          {filteredHosts.length > 0 && (
-            <>
-              <SectionHeader label="Devices on Network" />
-              {filteredHosts.map((h) => (
-                <DeviceCard key={h.ip} host={h} onConnect={onConnectHost} />
-              ))}
-            </>
-          )}
-
-          {total === 0 && (
-            <View style={styles.empty}>
-              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-                {deferred ? `No results for "${deferred}"` : "No connections yet"}
-              </Text>
-            </View>
-          )}
-        </BottomSheetScrollView>
-      </BottomSheetModal>
-    );
+export const GlobalSearchSheet = forwardRef<
+  BottomSheetModal,
+  GlobalSearchSheetProps
+>(function GlobalSearchSheet(
+  {
+    profiles,
+    sessions,
+    scannedHosts,
+    onConnectProfile,
+    onConnectHost,
+    onResumeSession,
   },
-);
+  ref,
+) {
+  const theme = useTheme();
+
+  // Uncontrolled: ref tracks the raw text so the input never re-renders from
+  // state changes. A short debounce fires the filter state update separately.
+  const queryRef     = useRef("");
+  const debounceRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [filterQuery, setFilterQuery] = useState("");
+
+  const handleChangeText = useCallback((text: string) => {
+    queryRef.current = text;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setFilterQuery(text.trim()), 120);
+  }, []);
+
+  const filteredProfiles = useMemo(
+    () => filterQuery ? profiles.filter((p) => profileMatches(p, filterQuery)) : profiles,
+    [profiles, filterQuery],
+  );
+
+  const filteredSessions = useMemo(
+    () => filterQuery ? sessions.filter((s) => sessionMatches(s, filterQuery)) : sessions,
+    [sessions, filterQuery],
+  );
+
+  const filteredHosts = useMemo(
+    () => filterQuery ? scannedHosts.filter((h) => hostMatches(h, filterQuery)) : scannedHosts,
+    [scannedHosts, filterQuery],
+  );
+
+  const renderBackdrop = useCallback(
+    (props: BottomSheetBackdropProps) => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+        opacity={0.5}
+      />
+    ),
+    [],
+  );
+
+  const total = filteredProfiles.length + filteredSessions.length + filteredHosts.length;
+
+  return (
+    <BottomSheetModal
+      ref={ref}
+      snapPoints={["60%", "95%"]}
+      backgroundStyle={{ backgroundColor: theme.colors.surface }}
+      handleIndicatorStyle={{ backgroundColor: theme.colors.onSurfaceVariant }}
+      backdropComponent={renderBackdrop}
+      keyboardBehavior="interactive"
+      keyboardBlurBehavior="restore"
+    >
+      <View style={[styles.searchBar, { borderBottomColor: theme.colors.outline }]}>
+        <BottomSheetTextInput
+          defaultValue=""
+          onChangeText={handleChangeText}
+          placeholder="Search connections, sessions, hosts…"
+          placeholderTextColor={theme.colors.onSurfaceVariant}
+          autoFocus
+          style={[styles.searchInput, { color: theme.colors.onSurface }]}
+        />
+      </View>
+
+      <BottomSheetScrollView contentContainerStyle={styles.scroll}>
+        {filteredSessions.length > 0 && (
+          <>
+            <SectionHeader label="Active Sessions" />
+            {filteredSessions.map((s) => (
+              <ProfileCard
+                key={s.id}
+                profile={s.profile}
+                onConnect={() => onResumeSession(s.id)}
+              />
+            ))}
+          </>
+        )}
+
+        {filteredProfiles.length > 0 && (
+          <>
+            <SectionHeader label="Saved Connections" />
+            {filteredProfiles.map((p) => (
+              <ProfileCard
+                key={p.id}
+                profile={p}
+                onConnect={onConnectProfile}
+              />
+            ))}
+          </>
+        )}
+
+        {filteredHosts.length > 0 && (
+          <>
+            <SectionHeader label="Devices on Network" />
+            {filteredHosts.map((h) => (
+              <DeviceCard key={h.ip} host={h} onConnect={onConnectHost} />
+            ))}
+          </>
+        )}
+
+        {total === 0 && (
+          <View style={styles.empty}>
+            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+              {filterQuery ? `No results for "${filterQuery}"` : "No connections yet"}
+            </Text>
+          </View>
+        )}
+      </BottomSheetScrollView>
+    </BottomSheetModal>
+  );
+});
 
 function SectionHeader({ label }: { label: string }) {
   const theme = useTheme();
   return (
-    <Text variant="labelMedium" style={[styles.sectionHeader, { color: theme.colors.onSurfaceVariant }]}>
+    <Text
+      variant="labelMedium"
+      style={[styles.sectionHeader, { color: theme.colors.onSurfaceVariant }]}
+    >
       {label.toUpperCase()}
     </Text>
   );

@@ -1,15 +1,3 @@
-/**
- * TerminalPreferencesContext
- *
- * Provides terminal display preferences (colour theme, font, font size) to the
- * entire app.  Preferences are persisted to AsyncStorage so they survive app
- * restarts.
- *
- * Usage:
- *   const { theme, resolvedTheme, fontId, fontSize, setTheme, setFont, setFontSize } =
- *     useTerminalPreferences();
- */
-
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   createContext,
@@ -26,42 +14,25 @@ import type { TerminalTheme, ResolvedTheme } from './types';
 import { resolveTheme } from './types';
 import { TERMINAL_FONTS, getFontById, type TerminalFont } from './fonts';
 
-// ── Storage keys ─────────────────────────────────────────────────────────────
-
 const KEY_THEME_ID  = 'cy_tty_theme_id';
 const KEY_FONT_ID   = 'cy_tty_font_id';
 const KEY_FONT_SIZE = 'cy_tty_font_size';
-
-// ── Defaults ─────────────────────────────────────────────────────────────────
 
 const DEFAULT_THEME_ID  = 'tokyo-night';
 const DEFAULT_FONT_ID   = 'jetbrains-mono';
 const DEFAULT_FONT_SIZE = 13;
 
-// ── Context value ─────────────────────────────────────────────────────────────
-
 export interface TerminalPreferencesContextValue {
-  /** Full theme definition (for Settings UI). */
   theme: TerminalTheme;
-  /** Pre-resolved colours as packed integers (for renderer). */
   resolvedTheme: ResolvedTheme;
-  /** All available themes. */
   allThemes: readonly TerminalTheme[];
-
-  /** Active font definition. */
   font: TerminalFont;
-  /** All available fonts. */
   allFonts: readonly TerminalFont[];
-
-  /** Active font size in points. */
   fontSize: number;
-
   setTheme: (themeId: string) => void;
   setFont:  (fontId: string)  => void;
   setFontSize: (size: number) => void;
 }
-
-// ── Context ───────────────────────────────────────────────────────────────────
 
 const TerminalPreferencesContext = createContext<TerminalPreferencesContextValue | null>(null);
 
@@ -71,15 +42,12 @@ export function useTerminalPreferences(): TerminalPreferencesContextValue {
   return ctx;
 }
 
-// ── Provider ─────────────────────────────────────────────────────────────────
-
 export function TerminalPreferencesProvider({ children }: { children: ReactNode }) {
   const [themeId,  setThemeIdState]  = useState(DEFAULT_THEME_ID);
   const [fontId,   setFontIdState]   = useState(DEFAULT_FONT_ID);
   const [fontSize, setFontSizeState] = useState(DEFAULT_FONT_SIZE);
   const [loaded,   setLoaded]        = useState(false);
 
-  // ── Load saved prefs ────────────────────────────────────────────────────
   useEffect(() => {
     void (async () => {
       try {
@@ -93,14 +61,13 @@ export function TerminalPreferencesProvider({ children }: { children: ReactNode 
         if (fid) setFontIdState(fid);
         if (fsz) setFontSizeState(Number(fsz));
       } catch {
-        // Use defaults on read error
+        // use defaults
       } finally {
         setLoaded(true);
       }
     })();
   }, []);
 
-  // ── Setters with persistence ────────────────────────────────────────────
   const setTheme = useCallback((id: string) => {
     setThemeIdState(id);
     void AsyncStorage.setItem(KEY_THEME_ID, id);
@@ -116,7 +83,6 @@ export function TerminalPreferencesProvider({ children }: { children: ReactNode 
     void AsyncStorage.setItem(KEY_FONT_SIZE, String(size));
   }, []);
 
-  // ── Derived values ──────────────────────────────────────────────────────
   const theme         = useMemo(() => getThemeById(themeId),  [themeId]);
   const resolvedTheme = useMemo(() => resolveTheme(theme),    [theme]);
   const font          = useMemo(() => getFontById(fontId),    [fontId]);
@@ -136,7 +102,6 @@ export function TerminalPreferencesProvider({ children }: { children: ReactNode 
     [theme, resolvedTheme, font, fontSize, setTheme, setFont, setFontSize],
   );
 
-  // Don't render children until prefs are loaded (avoids flash of wrong theme)
   if (!loaded) return null;
 
   return (

@@ -1,7 +1,3 @@
-/**
- * Settings tab — SSH Keys, Known Hosts, and Terminal appearance.
- */
-
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
@@ -33,8 +29,6 @@ import { useTerminalPreferences } from '@/core/theme/preferences-context';
 import { getCategories, getThemesByCategory } from '@/core/theme/color-themes';
 import type { TerminalTheme } from '@/core/theme/types';
 import type { TerminalFont } from '@/core/theme/fonts';
-
-// ── SSH Keys section ──────────────────────────────────────────────────────────
 
 function SshKeysSection() {
   const theme = useTheme();
@@ -133,8 +127,6 @@ function SshKeysSection() {
   );
 }
 
-// ── Known Hosts section ───────────────────────────────────────────────────────
-
 function KnownHostsSection() {
   const theme = useTheme();
   const [hosts, setHosts] = useState<KnownHost[]>([]);
@@ -215,8 +207,6 @@ function KnownHostsSection() {
   );
 }
 
-// ── Theme colour swatch ───────────────────────────────────────────────────────
-
 function ThemeSwatch({
   item,
   isActive,
@@ -227,10 +217,9 @@ function ThemeSwatch({
   onPress: () => void;
 }) {
   const uiTheme = useTheme();
-  // Show a 3-colour mini preview: background, foreground, accent (ANSI blue)
   const swatchBg  = item.background;
   const swatchFg  = item.foreground;
-  const swatchAcc = item.ansi[4]; // ANSI blue
+  const swatchAcc = item.ansi[4];
 
   return (
     <TouchableOpacity onPress={onPress} style={styles.swatchBtn} activeOpacity={0.7}>
@@ -240,15 +229,12 @@ function ThemeSwatch({
           { borderColor: isActive ? uiTheme.colors.primary : 'transparent' },
         ]}
       >
-        {/* Background layer */}
         <View style={[StyleSheet.absoluteFill, { backgroundColor: swatchBg, borderRadius: 8 }]} />
-        {/* Three mini colour dots */}
         <View style={styles.swatchDots}>
           <View style={[styles.dot, { backgroundColor: swatchFg }]} />
           <View style={[styles.dot, { backgroundColor: swatchAcc }]} />
           <View style={[styles.dot, { backgroundColor: item.ansi[1] }]} />
         </View>
-        {/* Active check */}
         {isActive && (
           <View style={styles.swatchCheck}>
             <MaterialCommunityIcons name="check" size={12} color="#ffffff" />
@@ -265,8 +251,6 @@ function ThemeSwatch({
   );
 }
 
-// ── Terminal section ──────────────────────────────────────────────────────────
-
 function TerminalSection() {
   const uiTheme = useTheme();
   const { theme: activeTheme, font: activeFont, fontSize, allFonts, setTheme, setFont, setFontSize } =
@@ -274,7 +258,6 @@ function TerminalSection() {
 
   const categories = getCategories();
 
-  // ── Font size slider ────────────────────────────────────────────────────
   const MIN_SIZE = 9;
   const MAX_SIZE = 20;
   const [sliderWidth, setSliderWidth] = useState(0);
@@ -300,7 +283,7 @@ function TerminalSection() {
     onResponderRelease: (e: GestureResponderEvent) => {
       const newSize = Math.round(MIN_SIZE + pctFromEvent(e) * (MAX_SIZE - MIN_SIZE));
       setLocalSize(null);
-      setFontSize(newSize); // commit to AsyncStorage
+      setFontSize(newSize);
     },
     onResponderTerminate: () => setLocalSize(null),
   };
@@ -316,8 +299,6 @@ function TerminalSection() {
       </Text>
 
       <Card style={[styles.card, { backgroundColor: uiTheme.colors.surface }]}>
-
-        {/* ── Font size ─────────────────────────────────────────────────── */}
         <View style={styles.settingRow}>
           <MaterialCommunityIcons name="format-size" size={22} color={uiTheme.colors.onSurfaceVariant} style={styles.listIcon} />
           <View style={{ flex: 1, marginLeft: 8 }}>
@@ -327,23 +308,16 @@ function TerminalSection() {
                 {displaySize}pt
               </Text>
             </View>
-            {/* Slider track */}
             <View
               style={[styles.sliderTrack, { backgroundColor: uiTheme.colors.surfaceVariant }]}
               onLayout={handleSliderLayout}
               {...sliderHandlers}
             >
               <View
-                style={[
-                  styles.sliderFill,
-                  { backgroundColor: uiTheme.colors.primary, width: thumbLeft + 10 },
-                ]}
+                style={[styles.sliderFill, { backgroundColor: uiTheme.colors.primary, width: thumbLeft + 10 }]}
               />
               <View
-                style={[
-                  styles.sliderThumb,
-                  { backgroundColor: uiTheme.colors.primary, left: thumbLeft },
-                ]}
+                style={[styles.sliderThumb, { backgroundColor: uiTheme.colors.primary, left: thumbLeft }]}
               />
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
@@ -355,7 +329,6 @@ function TerminalSection() {
 
         <Divider />
 
-        {/* ── Font picker ───────────────────────────────────────────────── */}
         <View style={styles.fontPickerHeader}>
           <MaterialCommunityIcons name="format-font" size={22} color={uiTheme.colors.onSurfaceVariant} style={styles.listIcon} />
           <Text variant="bodyMedium" style={[styles.fontPickerLabel, { color: uiTheme.colors.onSurface }]}>
@@ -374,13 +347,10 @@ function TerminalSection() {
                   isActive && { backgroundColor: uiTheme.colors.primaryContainer ?? uiTheme.colors.surfaceVariant },
                 ]}
               >
-                {/* "Aa" sample badge */}
                 <View
                   style={[
                     styles.fontBadge,
-                    {
-                      backgroundColor: isActive ? uiTheme.colors.primary : uiTheme.colors.surfaceVariant,
-                    },
+                    { backgroundColor: isActive ? uiTheme.colors.primary : uiTheme.colors.surfaceVariant },
                   ]}
                 >
                   <Text
@@ -393,7 +363,6 @@ function TerminalSection() {
                   </Text>
                 </View>
 
-                {/* Name + description */}
                 <View style={styles.fontInfo}>
                   <Text
                     variant="bodyMedium"
@@ -408,7 +377,6 @@ function TerminalSection() {
                   </View>
                 </View>
 
-                {/* Active checkmark / ligature badge row */}
                 <View style={styles.fontRight}>
                   {f.ligatures && (
                     <View style={[styles.ligaBadge, { borderColor: isActive ? uiTheme.colors.primary : uiTheme.colors.outline }]}>
@@ -430,7 +398,6 @@ function TerminalSection() {
 
         <Divider />
 
-        {/* ── Colour theme ─────────────────────────────────────────────── */}
         <View style={[styles.settingRow, { paddingBottom: 0 }]}>
           <MaterialCommunityIcons name="palette-outline" size={22} color={uiTheme.colors.onSurfaceVariant} style={styles.listIcon} />
           <View style={{ flex: 1, marginLeft: 8, marginBottom: 12 }}>
@@ -439,7 +406,6 @@ function TerminalSection() {
           </View>
         </View>
 
-        {/* Category rows */}
         {categories.map((cat) => {
           const themesInCat = getThemesByCategory(cat);
           return (
@@ -472,8 +438,6 @@ function TerminalSection() {
   );
 }
 
-// ── Screen ────────────────────────────────────────────────────────────────────
-
 export default function SettingsScreen() {
   const theme = useTheme();
 
@@ -496,8 +460,6 @@ export default function SettingsScreen() {
     </SafeAreaView>
   );
 }
-
-// ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
@@ -534,14 +496,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
   },
-  // ── Terminal section ────────────────────────────────────────────────────
   settingRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     paddingHorizontal: 12,
     paddingVertical: 14,
   },
-  // Font size slider
   sliderTrack: {
     height: 4,
     borderRadius: 2,
@@ -566,7 +526,6 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
   },
-  // Font picker
   fontPickerHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -575,9 +534,7 @@ const styles = StyleSheet.create({
     paddingBottom: 6,
     gap: 10,
   },
-  fontPickerLabel: {
-    fontWeight: '500',
-  },
+  fontPickerLabel: { fontWeight: '500' },
   fontRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -621,10 +578,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 0.3,
   },
-  // Theme swatches
-  categorySection: {
-    paddingBottom: 8,
-  },
+  categorySection: { paddingBottom: 8 },
   categoryLabel: {
     paddingHorizontal: 16,
     paddingTop: 8,

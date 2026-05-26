@@ -1,9 +1,3 @@
-/**
- * Sessions tab — lists all live SSH sessions from the SessionManager.
- *
- * Each row shows profile info, connection status badge, and resume/disconnect actions.
- */
-
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Badge, Card, IconButton, Text, useTheme } from 'react-native-paper';
@@ -12,8 +6,6 @@ import { router } from 'expo-router';
 
 import { useSessionManager, type LiveSession } from '@/core/sessions/session-manager';
 import type { SshSessionStatus } from '@/hooks/use-ssh-session';
-
-// ── Status colours (pulled from the active Paper/Material You theme) ──────────
 
 function useStatusColors(): Record<SshSessionStatus, string> {
   const theme = useTheme();
@@ -34,25 +26,23 @@ const STATUS_LABEL: Record<SshSessionStatus, string> = {
   disconnected: 'Disconnected',
 };
 
-// ── Session row ───────────────────────────────────────────────────────────────
-
 function SessionRow({ session }: { session: LiveSession }) {
   const theme = useTheme();
-  const { destroy } = useSessionManager();
+  const { destroy, create } = useSessionManager();
   const statusColors = useStatusColors();
   const dotColor = statusColors[session.status];
   const statusLabel = STATUS_LABEL[session.status];
 
+  const canReconnect = session.status === 'disconnected' || session.status === 'error' || session.status === 'idle';
+
   const handleResume = () => {
-    router.push({
-      pathname: '/terminal/[id]',
-      params: {
-        id: session.id,
-        host: session.profile.host,
-        port: String(session.profile.port),
-        username: session.profile.username,
-      },
-    });
+    if (canReconnect) {
+      destroy(session.id);
+      const newId = create(session.profile);
+      router.push({ pathname: '/terminal/[id]', params: { id: newId } });
+    } else {
+      router.push({ pathname: '/terminal/[id]', params: { id: session.id } });
+    }
   };
 
   const handleDisconnect = () => {
@@ -64,10 +54,8 @@ function SessionRow({ session }: { session: LiveSession }) {
       style={[styles.sessionCard, { backgroundColor: theme.colors.surface }]}
       contentStyle={styles.sessionContent}
     >
-      {/* Status dot */}
       <View style={[styles.dot, { backgroundColor: dotColor }]} />
 
-      {/* Info */}
       <View style={styles.sessionInfo}>
         <Text variant="titleSmall" numberOfLines={1} style={{ color: theme.colors.onSurface }}>
           {session.profile.label}
@@ -77,29 +65,23 @@ function SessionRow({ session }: { session: LiveSession }) {
           numberOfLines={1}
           style={{ color: theme.colors.onSurfaceVariant }}
         >
-          {session.profile.username
-            ? `${session.profile.username}@`
-            : ''}
+          {session.profile.username ? `${session.profile.username}@` : ''}
           {session.profile.host}:{session.profile.port}
         </Text>
-        <Text
-          variant="labelSmall"
-          style={{ color: dotColor, opacity: 0.9 }}
-        >
+        <Text variant="labelSmall" style={{ color: dotColor, opacity: 0.9 }}>
           {statusLabel}
           {session.status === 'connected' && `  ·  ${session.cols}×${session.rows}`}
           {session.status === 'error' && session.error ? `  —  ${session.error}` : ''}
         </Text>
       </View>
 
-      {/* Actions */}
       <View style={styles.sessionActions}>
         <IconButton
-          icon="play"
+          icon={canReconnect ? "refresh" : "play"}
           size={20}
           iconColor={theme.colors.primary}
           onPress={handleResume}
-          accessibilityLabel="Resume session"
+          accessibilityLabel={canReconnect ? "Reconnect" : "Resume session"}
           style={styles.actionBtn}
         />
         <IconButton
@@ -115,8 +97,6 @@ function SessionRow({ session }: { session: LiveSession }) {
   );
 }
 
-// ── Screen ────────────────────────────────────────────────────────────────────
-
 export default function SessionsScreen() {
   const theme = useTheme();
   const { sessions } = useSessionManager();
@@ -127,7 +107,6 @@ export default function SessionsScreen() {
       edges={['top', 'left', 'right']}
       style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
-      {/* Header */}
       <View style={[styles.header, { borderBottomColor: theme.colors.outline }]}>
         <Text variant="headlineMedium" style={[styles.title, { color: theme.colors.onSurface }]}>
           Sessions
@@ -166,8 +145,6 @@ export default function SessionsScreen() {
     </SafeAreaView>
   );
 }
-
-// ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
@@ -212,8 +189,6 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
-  sessionActions: {
-    flexDirection: 'row',
-  },
+  sessionActions: { flexDirection: 'row' },
   actionBtn: { margin: 0 },
 });

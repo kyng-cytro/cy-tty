@@ -1,14 +1,3 @@
-/**
- * ProfileStorage — persists SSH profiles using expo-secure-store.
- *
- * All profiles are stored as a JSON array under the key `CY_TTY_PROFILES`.
- * Passwords are stored individually under `cy_tty_pw_<id>` so the profile
- * list is safe to log / inspect without exposing credentials.
- *
- * expo-secure-store encrypts at rest using the platform keychain (iOS Keychain
- * Services / Android Keystore), so no manual crypto is needed here.
- */
-
 import * as SecureStore from 'expo-secure-store';
 import type { SshProfile } from './types';
 
@@ -18,14 +7,11 @@ function pwKey(id: string) {
   return `cy_tty_pw_${id}`;
 }
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
-
 async function readProfiles(): Promise<SshProfile[]> {
   try {
     const raw = await SecureStore.getItemAsync(PROFILES_KEY);
     if (!raw) return [];
     const parsed: SshProfile[] = JSON.parse(raw);
-    // Re-attach passwords from individual keys
     return Promise.all(
       parsed.map(async (p) => {
         if (p.authMethod === 'password') {
@@ -41,10 +27,8 @@ async function readProfiles(): Promise<SshProfile[]> {
 }
 
 async function writeProfiles(profiles: SshProfile[]): Promise<void> {
-  // Strip passwords from the main array before writing
   const stripped = profiles.map(({ password: _pw, ...rest }) => rest);
   await SecureStore.setItemAsync(PROFILES_KEY, JSON.stringify(stripped));
-  // Write each password individually
   await Promise.all(
     profiles.map(async (p) => {
       if (p.authMethod === 'password' && p.password != null) {
@@ -54,13 +38,9 @@ async function writeProfiles(profiles: SshProfile[]): Promise<void> {
   );
 }
 
-// ── Public API ───────────────────────────────────────────────────────────────
-
 export const ProfileStorage = {
-  /** Load all saved profiles (passwords re-attached from SecureStore). */
   loadAll: readProfiles,
 
-  /** Create or update a profile. */
   async save(profile: SshProfile): Promise<void> {
     const existing = await readProfiles();
     const idx = existing.findIndex((p) => p.id === profile.id);
@@ -72,7 +52,6 @@ export const ProfileStorage = {
     await writeProfiles(existing);
   },
 
-  /** Update only the lastConnected timestamp. */
   async touch(id: string): Promise<void> {
     const existing = await readProfiles();
     const idx = existing.findIndex((p) => p.id === id);
@@ -82,7 +61,6 @@ export const ProfileStorage = {
     }
   },
 
-  /** Remove a profile and its stored password. */
   async remove(id: string): Promise<void> {
     const existing = await readProfiles();
     const filtered = existing.filter((p) => p.id !== id);

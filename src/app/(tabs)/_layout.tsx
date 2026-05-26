@@ -1,10 +1,3 @@
-/**
- * Bottom tab navigator — Connect · Sessions · Settings
- *
- * Uses react-native-paper's BottomNavigation via expo-router's Tabs
- * so the tab bar follows the Material You theme.
- */
-
 import { Tabs } from 'expo-router';
 import { useTheme } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';

@@ -1,13 +1,5 @@
-import { forwardRef, useCallback, useMemo, useRef, useState } from "react";
-import {
-  Alert,
-  Keyboard,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  View,
-} from "react-native";
+import { forwardRef, useCallback, useRef, useState } from "react";
+import { Alert, Keyboard, ScrollView, StyleSheet, View } from "react-native";
 import {
   BottomSheetModal,
   BottomSheetView,
@@ -43,8 +35,8 @@ function validate(
 ): Record<string, string> {
   const errors: Record<string, string> = {};
   if (!host.trim()) errors.host = "Host is required";
-  const portNum = Number(port);
-  if (!port.trim() || !Number.isInteger(portNum) || portNum < 1 || portNum > 65535) {
+  const n = Number(port);
+  if (!port.trim() || !Number.isInteger(n) || n < 1 || n > 65535) {
     errors.port = "Port must be 1–65535";
   }
   if (authMethod === "key" && !selectedKeyId) {
@@ -53,26 +45,22 @@ function validate(
   return errors;
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
-
 export const ConnectionSheet = forwardRef<
   BottomSheetModal,
   ConnectionSheetProps
 >(function ConnectionSheet({ onSave, initialHost = "", editProfile }, ref) {
   const theme = useTheme();
 
-  // ── Form state ────────────────────────────────────────────────────────────
-  const [label, setLabel] = useState(editProfile?.label ?? "");
-  const [host, setHost] = useState(editProfile?.host ?? initialHost);
-  const [port, setPort] = useState(String(editProfile?.port ?? 22));
-  const [username, setUsername] = useState(editProfile?.username ?? "");
+  const labelRef = useRef(editProfile?.label ?? "");
+  const hostRef = useRef(editProfile?.host ?? initialHost);
+  const portRef = useRef(String(editProfile?.port ?? 22));
+  const usernameRef = useRef(editProfile?.username ?? "");
+  const passwordRef = useRef(editProfile?.password ?? "");
+
   const [authMethod, setAuthMethod] = useState<AuthMethod>(
     editProfile?.authMethod ?? "password",
   );
-  const [password, setPassword] = useState(editProfile?.password ?? "");
   const [showPassword, setShowPassword] = useState(false);
-
-  // ── Key state ─────────────────────────────────────────────────────────────
   const [keys, setKeys] = useState<KeyMeta[]>([]);
   const [selectedKeyId, setSelectedKeyId] = useState<string | null>(
     editProfile?.privateKeyId ?? null,
@@ -80,17 +68,13 @@ export const ConnectionSheet = forwardRef<
   const [showPasteArea, setShowPasteArea] = useState(false);
   const [pemText, setPemText] = useState("");
   const [importingKey, setImportingKey] = useState(false);
-
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
-  const errors    = useMemo(
-    () => validate(host, port, authMethod, selectedKeyId),
-    [host, port, authMethod, selectedKeyId],
-  );
-  const hasErrors = Object.keys(errors).length > 0;
+
+  const showError = (field: string) => submitted && !!formErrors[field];
 
   const loadKeys = useCallback(async () => {
-    const list = await KeyStore.list();
-    setKeys(list);
+    setKeys(await KeyStore.list());
   }, []);
 
   const handleAuthMethodChange = useCallback(
@@ -107,10 +91,8 @@ export const ConnectionSheet = forwardRef<
       copyToCacheDirectory: true,
     });
     if (result.canceled || !result.assets?.[0]) return;
-    const uri = result.assets[0].uri;
     try {
-      const pem = await FileSystem.readAsStringAsync(uri);
-      setPemText(pem);
+      setPemText(await FileSystem.readAsStringAsync(result.assets[0].uri));
       setShowPasteArea(true);
     } catch {
       Alert.alert("Error", "Could not read the selected file.");
@@ -121,10 +103,8 @@ export const ConnectionSheet = forwardRef<
     if (!pemText.trim()) return;
     setImportingKey(true);
     try {
-      const label_ = `Key ${Date.now()}`;
-      const id = await KeyStore.import(pemText.trim(), label_);
-      const list = await KeyStore.list();
-      setKeys(list);
+      const id = await KeyStore.import(pemText.trim(), `Key ${Date.now()}`);
+      setKeys(await KeyStore.list());
       setSelectedKeyId(id);
       setShowPasteArea(false);
       setPemText("");
@@ -139,42 +119,33 @@ export const ConnectionSheet = forwardRef<
   }, [pemText]);
 
   const handleSave = useCallback(async () => {
-    setSubmitted(true);
-    if (hasErrors) return;
-    Keyboard.dismiss();
+    const host = hostRef.current.trim();
+    const port = portRef.current;
+    const username = usernameRef.current.trim();
+    const label = labelRef.current.trim();
+    const password = passwordRef.current;
 
-    const profile: SshProfile = {
+    const errors = validate(host, port, authMethod, selectedKeyId);
+    setFormErrors(errors);
+    setSubmitted(true);
+    if (Object.keys(errors).length > 0) return;
+
+    Keyboard.dismiss();
+    onSave({
       id: editProfile?.id ?? Crypto.randomUUID(),
-      label:
-        label.trim() || (username ? `${username}@${host.trim()}` : host.trim()),
-      host: host.trim(),
+      label: label || (username ? `${username}@${host}` : host),
+      host,
       port: Number(port),
-      username: username.trim(),
+      username,
       authMethod,
       ...(authMethod === "password"
         ? { password }
         : { privateKeyId: selectedKeyId! }),
       createdAt: editProfile?.createdAt ?? Date.now(),
       lastConnected: editProfile?.lastConnected,
-    };
-
-    onSave(profile);
+    });
     (ref as React.RefObject<BottomSheetModal>)?.current?.dismiss();
-  }, [
-    hasErrors,
-    label,
-    host,
-    port,
-    username,
-    authMethod,
-    password,
-    selectedKeyId,
-    editProfile,
-    onSave,
-    ref,
-  ]);
-
-  // ── Backdrop ──────────────────────────────────────────────────────────────
+  }, [authMethod, selectedKeyId, editProfile, onSave, ref]);
 
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
@@ -187,8 +158,6 @@ export const ConnectionSheet = forwardRef<
     ),
     [],
   );
-
-  const showError = (field: string) => submitted && !!errors[field];
 
   return (
     <BottomSheetModal
@@ -215,8 +184,10 @@ export const ConnectionSheet = forwardRef<
 
           <TextInput
             label="Label (optional)"
-            value={label}
-            onChangeText={setLabel}
+            defaultValue={labelRef.current}
+            onChangeText={(t) => {
+              labelRef.current = t;
+            }}
             mode="outlined"
             autoCapitalize="none"
             autoCorrect={false}
@@ -226,8 +197,10 @@ export const ConnectionSheet = forwardRef<
 
           <TextInput
             label="Host"
-            value={host}
-            onChangeText={setHost}
+            defaultValue={hostRef.current}
+            onChangeText={(t) => {
+              hostRef.current = t;
+            }}
             mode="outlined"
             autoCapitalize="none"
             autoCorrect={false}
@@ -237,13 +210,15 @@ export const ConnectionSheet = forwardRef<
             left={<TextInput.Icon icon="server" />}
           />
           <HelperText type="error" visible={showError("host")}>
-            {errors.host}
+            {formErrors.host}
           </HelperText>
 
           <TextInput
             label="Port"
-            value={port}
-            onChangeText={setPort}
+            defaultValue={portRef.current}
+            onChangeText={(t) => {
+              portRef.current = t;
+            }}
             mode="outlined"
             keyboardType="number-pad"
             error={showError("port")}
@@ -251,13 +226,15 @@ export const ConnectionSheet = forwardRef<
             left={<TextInput.Icon icon="pound" />}
           />
           <HelperText type="error" visible={showError("port")}>
-            {errors.port}
+            {formErrors.port}
           </HelperText>
 
           <TextInput
             label="Username (optional)"
-            value={username}
-            onChangeText={setUsername}
+            defaultValue={usernameRef.current}
+            onChangeText={(t) => {
+              usernameRef.current = t;
+            }}
             mode="outlined"
             autoCapitalize="none"
             autoCorrect={false}
@@ -294,23 +271,23 @@ export const ConnectionSheet = forwardRef<
           </View>
 
           {authMethod === "password" && (
-            <>
-              <TextInput
-                label="Password (optional)"
-                value={password}
-                onChangeText={setPassword}
-                mode="outlined"
-                secureTextEntry={!showPassword}
-                style={styles.input}
-                left={<TextInput.Icon icon="lock" />}
-                right={
-                  <TextInput.Icon
-                    icon={showPassword ? "eye-off" : "eye"}
-                    onPress={() => setShowPassword((v) => !v)}
-                  />
-                }
-              />
-            </>
+            <TextInput
+              label="Password (optional)"
+              defaultValue={passwordRef.current}
+              onChangeText={(t) => {
+                passwordRef.current = t;
+              }}
+              mode="outlined"
+              secureTextEntry={!showPassword}
+              style={styles.input}
+              left={<TextInput.Icon icon="lock" />}
+              right={
+                <TextInput.Icon
+                  icon={showPassword ? "eye-off" : "eye"}
+                  onPress={() => setShowPassword((v) => !v)}
+                />
+              }
+            />
           )}
 
           {authMethod === "key" && (
@@ -387,12 +364,11 @@ export const ConnectionSheet = forwardRef<
               )}
 
               <HelperText type="error" visible={showError("key")}>
-                {errors.key}
+                {formErrors.key}
               </HelperText>
             </View>
           )}
 
-          {/* Save */}
           <Button
             mode="contained"
             onPress={handleSave}
@@ -408,61 +384,24 @@ export const ConnectionSheet = forwardRef<
   );
 });
 
-// ── Styles ────────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
-  sheetView: {
-    flex: 1,
-  },
-  scroll: {
-    padding: 20,
-    paddingBottom: 48,
-    gap: 2,
-  },
-  title: {
-    fontWeight: "700",
-    marginBottom: 16,
-  },
+  sheetView: { flex: 1 },
+  scroll: { padding: 20, paddingBottom: 48, gap: 2 },
+  title: { fontWeight: "700", marginBottom: 16 },
   sectionLabel: {
     marginTop: 12,
     marginBottom: 4,
     textTransform: "uppercase",
     letterSpacing: 0.8,
   },
-  input: {
-    marginBottom: 0,
-  },
-  chips: {
-    flexDirection: "row",
-    gap: 8,
-    marginBottom: 8,
-  },
-  chip: {
-    flexShrink: 1,
-  },
-  keySection: {
-    gap: 8,
-  },
-  importRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginTop: 4,
-  },
-  importBtn: {
-    flex: 1,
-  },
-  pemInput: {
-    minHeight: 120,
-    fontFamily: "monospace",
-  },
-  importConfirm: {
-    marginTop: 4,
-  },
-  saveBtn: {
-    marginTop: 24,
-    borderRadius: 12,
-  },
-  saveBtnContent: {
-    paddingVertical: 6,
-  },
+  input: { marginBottom: 0 },
+  chips: { flexDirection: "row", gap: 8, marginBottom: 8 },
+  chip: { flexShrink: 1 },
+  keySection: { gap: 8 },
+  importRow: { flexDirection: "row", gap: 8, marginTop: 4 },
+  importBtn: { flex: 1 },
+  pemInput: { minHeight: 120, fontFamily: "monospace" },
+  importConfirm: { marginTop: 4 },
+  saveBtn: { marginTop: 24, borderRadius: 12 },
+  saveBtnContent: { paddingVertical: 6 },
 });

@@ -1,17 +1,3 @@
-/**
- * Connect tab — the main home screen of cy-tty.
- *
- * Layout:
- *   ┌─ Header ──────────────────────── cy-tty ──── 🔍 ┐
- *   ├─ ScrollView ───────────────────────────────────  │
- *   │   Devices on Network  (scan section)             │
- *   │   Recent Connections  (saved profiles)           │
- *   └─────────────────────────────────────────────────┘
- *                                             ╔═══╗
- *                                             ║ + ║  ← FAB
- *                                             ╚═══╝
- */
-
 import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { router } from "expo-router";
@@ -38,8 +24,6 @@ import { useSessionManager } from "@/core/sessions/session-manager";
 import { useNetworkScan } from "@/hooks/use-network-scan";
 import { useProfiles } from "@/hooks/use-profiles";
 
-// ── Component ─────────────────────────────────────────────────────────────────
-
 export default function ConnectScreen() {
   const theme = useTheme();
 
@@ -51,8 +35,6 @@ export default function ConnectScreen() {
   const searchRef = useRef<BottomSheetModal>(null);
   const editingProfile = useRef<SshProfile | undefined>(undefined);
   const prefillHost = useRef("");
-
-  // ── Connect helpers ───────────────────────────────────────────────────────
 
   const launchSession = useCallback(
     (profile: SshProfile) => {
@@ -116,18 +98,13 @@ export default function ConnectScreen() {
     [sessions],
   );
 
-  // ── Render ────────────────────────────────────────────────────────────────
-
   return (
     <BottomSheetModalProvider>
       <SafeAreaView
         edges={["top", "left", "right"]}
         style={[styles.container, { backgroundColor: theme.colors.background }]}
       >
-        {/* ── Header ─────────────────────────────────────────────────────── */}
-        <View
-          style={[styles.header, { borderBottomColor: theme.colors.outline }]}
-        >
+        <View style={[styles.header, { borderBottomColor: theme.colors.outline }]}>
           <Text
             variant="headlineMedium"
             style={[styles.appName, { color: theme.colors.primary }]}
@@ -143,7 +120,6 @@ export default function ConnectScreen() {
           />
         </View>
 
-        {/* ── Scan progress bar ───────────────────────────────────────────── */}
         {scanning && (
           <ProgressBar
             progress={progress}
@@ -152,20 +128,15 @@ export default function ConnectScreen() {
           />
         )}
 
-        {/* ── Content ────────────────────────────────────────────────────── */}
         <ScrollView
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
         >
-          {/* Devices on Network */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text
                 variant="titleSmall"
-                style={[
-                  styles.sectionTitle,
-                  { color: theme.colors.onSurfaceVariant },
-                ]}
+                style={[styles.sectionTitle, { color: theme.colors.onSurfaceVariant }]}
               >
                 DEVICES ON NETWORK
               </Text>
@@ -181,10 +152,7 @@ export default function ConnectScreen() {
             {!scanning && hosts.length === 0 && (
               <Text
                 variant="bodySmall"
-                style={[
-                  styles.emptyHint,
-                  { color: theme.colors.onSurfaceVariant },
-                ]}
+                style={[styles.emptyHint, { color: theme.colors.onSurfaceVariant }]}
               >
                 No SSH devices found on this network.
               </Text>
@@ -194,15 +162,10 @@ export default function ConnectScreen() {
             ))}
           </View>
 
-          {/* Recent Connections */}
           <View style={styles.section}>
             <Text
               variant="titleSmall"
-              style={[
-                styles.sectionTitle,
-                styles.sectionTitleStandalone,
-                { color: theme.colors.onSurfaceVariant },
-              ]}
+              style={[styles.sectionTitle, styles.sectionTitleStandalone, { color: theme.colors.onSurfaceVariant }]}
             >
               RECENT CONNECTIONS
             </Text>
@@ -210,10 +173,7 @@ export default function ConnectScreen() {
             {profiles.length === 0 && (
               <Text
                 variant="bodySmall"
-                style={[
-                  styles.emptyHint,
-                  { color: theme.colors.onSurfaceVariant },
-                ]}
+                style={[styles.emptyHint, { color: theme.colors.onSurfaceVariant }]}
               >
                 Tap + to add your first connection.
               </Text>
@@ -230,7 +190,6 @@ export default function ConnectScreen() {
           </View>
         </ScrollView>
 
-        {/* ── FAB ────────────────────────────────────────────────────────── */}
         <FAB
           icon="plus"
           style={[styles.fab, { backgroundColor: theme.colors.primary }]}
@@ -243,7 +202,6 @@ export default function ConnectScreen() {
           accessibilityLabel="Add new connection"
         />
 
-        {/* ── Sheets ─────────────────────────────────────────────────────── */}
         <ConnectionSheet
           ref={sheetRef}
           onSave={handleSaveAndConnect}
@@ -265,12 +223,8 @@ export default function ConnectScreen() {
   );
 }
 
-// ── Styles ────────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -283,15 +237,9 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: -0.5,
   },
-  progressBar: {
-    height: 2,
-  },
-  scroll: {
-    paddingBottom: 96, // room for FAB
-  },
-  section: {
-    paddingTop: 20,
-  },
+  progressBar: { height: 2 },
+  scroll: { paddingBottom: 96 },
+  section: { paddingTop: 20 },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",

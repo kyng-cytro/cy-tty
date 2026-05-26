@@ -1,22 +1,9 @@
-/**
- * TerminalRow — renders one row of the terminal grid using Skia.
- *
- * Wrapped in React.memo so it only re-renders when its `cells` array reference
- * changes.  applyDelta() in grid.ts preserves references for unchanged rows,
- * so React skips them automatically.
- *
- * Theme colours are passed as packed 0xRRGGBB integers so the memo comparison
- * is a cheap integer equality check.
- */
-
 import { Glyphs, Group, Rect, type SkFont } from '@shopify/react-native-skia';
 import { memo, useMemo } from 'react';
 
 import { resolveCellColors } from '@/core/terminal/grid';
 import type { TerminalCell } from '@/core/terminal/types';
 import { argbToHex } from '@/core/terminal/colors';
-
-// ── Types ─────────────────────────────────────────────────────────────────
 
 interface GlyphRun {
   glyphs: { id: number; pos: { x: number; y: number } }[];
@@ -31,13 +18,6 @@ interface BgRect {
   color: string;
 }
 
-// ── Row render-data computation ───────────────────────────────────────────
-
-/**
- * Walk one terminal row and produce:
- *  - bgRects  : non-default background fills
- *  - glyphRuns: glyph groups batched by fg colour
- */
 function buildRowData(
   cells: TerminalCell[],
   rowY: number,
@@ -50,7 +30,6 @@ function buildRowData(
   themePalette: readonly number[] | undefined,
 ): { bgRects: BgRect[]; glyphRuns: GlyphRun[] } {
   const bgRects: BgRect[] = [];
-  // Map<colorHex, GlyphRun> — one entry per distinct fg colour in this row
   const runMap = new Map<string, GlyphRun>();
 
   for (let col = 0; col < cells.length; col++) {
@@ -59,12 +38,10 @@ function buildRowData(
 
     const { fg, bg } = resolveCellColors(cell, fgRgb, bgRgb, themePalette);
 
-    // ── Background rect (skip default background to avoid overdraw) ───────
     if ((bg & 0x00ffffff) !== bgRgb) {
       bgRects.push({ x, y: rowY, w: cellWidth, h: cellHeight, color: argbToHex(bg) });
     }
 
-    // ── Glyph ─────────────────────────────────────────────────────────────
     if (!cell.char || cell.invisible) continue;
 
     const ids = font.getGlyphIDs(cell.char);
@@ -86,22 +63,16 @@ function buildRowData(
   return { bgRects, glyphRuns: [...runMap.values()] };
 }
 
-// ── Component ─────────────────────────────────────────────────────────────
-
 export interface TerminalRowProps {
   cells: TerminalCell[];
   rowIndex: number;
   cellWidth: number;
   cellHeight: number;
-  /** Distance from cell top to text baseline (pixels). */
   baseline: number;
   font: SkFont;
   boldFont: SkFont | null;
-  /** Packed 0xRRGGBB default foreground colour from the active theme. */
   fgRgb: number;
-  /** Packed 0xRRGGBB default background colour from the active theme. */
   bgRgb: number;
-  /** Optional 16-colour ANSI palette override from the active theme. */
   themePalette?: readonly number[];
 }
 

@@ -1,23 +1,4 @@
-/**
- * Terminal colour themes.
- *
- * Organised by category. Adding a new theme is as simple as pushing an entry
- * to this array — the Settings screen and theme engine pick it up automatically.
- *
- * Colour sources:
- *   Catppuccin  — https://github.com/catppuccin/catppuccin
- *   Dracula     — https://draculatheme.com
- *   Gruvbox     — https://github.com/morhetz/gruvbox
- *   Nord        — https://www.nordtheme.com
- *   One Dark    — https://github.com/Binaryify/OneDark-Pro
- *   Solarized   — https://ethanschoonover.com/solarized
- *   Tokyo Night — https://github.com/enkia/tokyo-night-vscode-theme
- *   others      — iterm2colorschemes.com / terminal.sexy
- */
-
 import type { TerminalTheme } from './types';
-
-// ── Catppuccin ────────────────────────────────────────────────────────────────
 
 export const catppuccinMocha: TerminalTheme = {
   id: 'catppuccin-mocha',
@@ -87,8 +68,6 @@ export const catppuccinLatte: TerminalTheme = {
   ],
 };
 
-// ── Tokyo Night ───────────────────────────────────────────────────────────────
-
 export const tokyoNight: TerminalTheme = {
   id: 'tokyo-night',
   name: 'Tokyo Night',
@@ -123,8 +102,6 @@ export const tokyoNightStorm: TerminalTheme = {
   ],
 };
 
-// ── Dracula ───────────────────────────────────────────────────────────────────
-
 export const dracula: TerminalTheme = {
   id: 'dracula',
   name: 'Dracula',
@@ -142,8 +119,6 @@ export const dracula: TerminalTheme = {
   ],
 };
 
-// ── One Dark ──────────────────────────────────────────────────────────────────
-
 export const oneDarkPro: TerminalTheme = {
   id: 'one-dark-pro',
   name: 'One Dark Pro',
@@ -160,8 +135,6 @@ export const oneDarkPro: TerminalTheme = {
     '#4d99e0', '#c678dd', '#56b6c2', '#ffffff',
   ],
 };
-
-// ── Gruvbox ───────────────────────────────────────────────────────────────────
 
 export const gruvboxDark: TerminalTheme = {
   id: 'gruvbox-dark',
@@ -197,8 +170,6 @@ export const gruvboxLight: TerminalTheme = {
   ],
 };
 
-// ── Nord ──────────────────────────────────────────────────────────────────────
-
 export const nord: TerminalTheme = {
   id: 'nord',
   name: 'Nord',
@@ -215,8 +186,6 @@ export const nord: TerminalTheme = {
     '#81a1c1', '#b48ead', '#8fbcbb', '#eceff4',
   ],
 };
-
-// ── Solarized ─────────────────────────────────────────────────────────────────
 
 export const solarizedDark: TerminalTheme = {
   id: 'solarized-dark',
@@ -252,8 +221,6 @@ export const solarizedLight: TerminalTheme = {
   ],
 };
 
-// ── Monokai ───────────────────────────────────────────────────────────────────
-
 export const monokai: TerminalTheme = {
   id: 'monokai',
   name: 'Monokai',
@@ -270,8 +237,6 @@ export const monokai: TerminalTheme = {
     '#66d9e8', '#ae81ff', '#a1efe4', '#f9f8f5',
   ],
 };
-
-// ── Tomorrow Night series ─────────────────────────────────────────────────────
 
 export const tomorrowNight: TerminalTheme = {
   id: 'tomorrow-night',
@@ -324,8 +289,6 @@ export const tomorrowNightEighties: TerminalTheme = {
   ],
 };
 
-// ── Ayu ───────────────────────────────────────────────────────────────────────
-
 export const ayuDark: TerminalTheme = {
   id: 'ayu-dark',
   name: 'Ayu Dark',
@@ -360,8 +323,6 @@ export const ayuMirage: TerminalTheme = {
   ],
 };
 
-// ── VS Code ───────────────────────────────────────────────────────────────────
-
 export const vscodeDark: TerminalTheme = {
   id: 'vscode-dark',
   name: 'VS Code Dark+',
@@ -395,8 +356,6 @@ export const vscodeLight: TerminalTheme = {
     '#0451a5', '#bc05bc', '#0598bc', '#a5a5a5',
   ],
 };
-
-// ── Material ──────────────────────────────────────────────────────────────────
 
 export const materialDark: TerminalTheme = {
   id: 'material-dark',
@@ -449,8 +408,6 @@ export const materialPalenight: TerminalTheme = {
   ],
 };
 
-// ── Night Owl ─────────────────────────────────────────────────────────────────
-
 export const nightOwl: TerminalTheme = {
   id: 'night-owl',
   name: 'Night Owl',
@@ -467,8 +424,6 @@ export const nightOwl: TerminalTheme = {
     '#82aaff', '#ae81ff', '#7fdbca', '#ffffff',
   ],
 };
-
-// ── Oceanic Next ──────────────────────────────────────────────────────────────
 
 export const oceanicNext: TerminalTheme = {
   id: 'oceanic-next',
@@ -487,8 +442,6 @@ export const oceanicNext: TerminalTheme = {
   ],
 };
 
-// ── Cobalt2 ───────────────────────────────────────────────────────────────────
-
 export const cobalt2: TerminalTheme = {
   id: 'cobalt2',
   name: 'Cobalt2',
@@ -505,8 +458,6 @@ export const cobalt2: TerminalTheme = {
     '#2aaae8', '#ff4da8', '#49baff', '#ffffff',
   ],
 };
-
-// ── Atom One Light ────────────────────────────────────────────────────────────
 
 export const atomOneLight: TerminalTheme = {
   id: 'atom-one-light',
@@ -525,8 +476,6 @@ export const atomOneLight: TerminalTheme = {
   ],
 };
 
-// ── Cobalt (ACE) ──────────────────────────────────────────────────────────────
-
 export const cobaltAce: TerminalTheme = {
   id: 'cobalt-ace',
   name: 'Cobalt',
@@ -543,8 +492,6 @@ export const cobaltAce: TerminalTheme = {
     '#66a3ff', '#ff66ff', '#66ffff', '#ffffff',
   ],
 };
-
-// ── GitHub Dark ───────────────────────────────────────────────────────────────
 
 export const githubDark: TerminalTheme = {
   id: 'github-dark',
@@ -563,8 +510,6 @@ export const githubDark: TerminalTheme = {
   ],
 };
 
-// ── Rosé Pine ─────────────────────────────────────────────────────────────────
-
 export const rosePine: TerminalTheme = {
   id: 'rose-pine',
   name: 'Rosé Pine',
@@ -581,8 +526,6 @@ export const rosePine: TerminalTheme = {
     '#9ccfd8', '#c4a7e7', '#ebbcba', '#e0def4',
   ],
 };
-
-// ── Merbivore (ACE) ───────────────────────────────────────────────────────────
 
 export const merbivore: TerminalTheme = {
   id: 'merbivore',
@@ -601,45 +544,33 @@ export const merbivore: TerminalTheme = {
   ],
 };
 
-// ── All themes master list ────────────────────────────────────────────────────
-
 export const ALL_THEMES: readonly TerminalTheme[] = [
-  // Default first
   tokyoNight,
   tokyoNightStorm,
-  // Catppuccin
   catppuccinMocha,
   catppuccinMacchiato,
   catppuccinFrappe,
   catppuccinLatte,
-  // Popular
   dracula,
   oneDarkPro,
   nightOwl,
   nord,
   rosePine,
   githubDark,
-  // Gruvbox
   gruvboxDark,
   gruvboxLight,
-  // Solarized
   solarizedDark,
   solarizedLight,
-  // Tomorrow Night
   tomorrowNight,
   tomorrowNightBlue,
   tomorrowNightEighties,
-  // Ayu
   ayuDark,
   ayuMirage,
-  // VS Code
   vscodeDark,
   vscodeLight,
-  // Material
   materialDark,
   materialOcean,
   materialPalenight,
-  // ACE / Popular
   monokai,
   oceanicNext,
   cobalt2,
@@ -648,12 +579,10 @@ export const ALL_THEMES: readonly TerminalTheme[] = [
   atomOneLight,
 ];
 
-/** Look up a theme by ID, falling back to Tokyo Night. */
 export function getThemeById(id: string): TerminalTheme {
   return ALL_THEMES.find((t) => t.id === id) ?? tokyoNight;
 }
 
-/** Return unique category names in display order. */
 export function getCategories(): string[] {
   const seen = new Set<string>();
   const cats: string[] = [];
@@ -666,7 +595,6 @@ export function getCategories(): string[] {
   return cats;
 }
 
-/** Return themes belonging to a given category. */
 export function getThemesByCategory(category: string): TerminalTheme[] {
   return ALL_THEMES.filter((t) => t.category === category);
 }

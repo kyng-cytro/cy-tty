@@ -1,6 +1,6 @@
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -35,7 +35,47 @@ import {
 import { useSessionManager } from "@/core/sessions/session-manager";
 import { useTerminalPreferences } from "@/core/theme/preferences-context";
 
-// ── Status overlay ─────────────────────────────────────────────────────────
+// Ctrl: a-z → \x01-\x1a; a handful of punctuation; arrow/tab escape sequences.
+// Alt: prepend ESC to any single char or remap arrow sequences.
+function applyModifier(data: string, mod: "ctrl" | "alt"): string {
+  if (mod === "ctrl") {
+    if (data.length === 1) {
+      const c = data.toLowerCase().charCodeAt(0);
+      if (c >= 97 && c <= 122) return String.fromCharCode(c - 96);
+      if (data === "[") return "\x1b";
+      if (data === "\\") return "\x1c";
+      if (data === "]") return "\x1d";
+      if (data === " ") return "\x00";
+    }
+    switch (data) {
+      case "\x1b[D":
+        return "\x1b[1;5D";
+      case "\x1b[C":
+        return "\x1b[1;5C";
+      case "\x1b[A":
+        return "\x1b[1;5A";
+      case "\x1b[B":
+        return "\x1b[1;5B";
+      case "\t":
+        return "\x1b[27;5;9~";
+    }
+  } else {
+    if (data.length === 1) return "\x1b" + data;
+    switch (data) {
+      case "\x1b[D":
+        return "\x1b[1;3D";
+      case "\x1b[C":
+        return "\x1b[1;3C";
+      case "\x1b[A":
+        return "\x1b[1;3A";
+      case "\x1b[B":
+        return "\x1b[1;3B";
+      case "\t":
+        return "\x1b[27;3;9~";
+    }
+  }
+  return data;
+}
 
 function StatusOverlay() {
   const theme = useTheme();
@@ -49,14 +89,23 @@ function StatusOverlay() {
   };
 
   return (
-    <View style={[styles.overlay, { backgroundColor: theme.colors.surface + "ee" }]}>
+    <View
+      style={[styles.overlay, { backgroundColor: theme.colors.surface + "ee" }]}
+    >
       {status === "connecting" && (
         <>
           <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text variant="bodyLarge" style={[styles.overlayText, { color: theme.colors.onSurface }]}>
+          <Text
+            variant="bodyLarge"
+            style={[styles.overlayText, { color: theme.colors.onSurface }]}
+          >
             Connecting…
           </Text>
-          <Button mode="outlined" onPress={handleBack} style={styles.overlayBtn}>
+          <Button
+            mode="outlined"
+            onPress={handleBack}
+            style={styles.overlayBtn}
+          >
             Cancel
           </Button>
         </>
@@ -64,14 +113,31 @@ function StatusOverlay() {
 
       {(status === "idle" || status === "error") && (
         <>
-          <MaterialCommunityIcons name="alert-circle-outline" size={52} color={theme.colors.error} />
-          <Text variant="titleMedium" style={{ color: theme.colors.error, marginTop: 8 }}>
+          <MaterialCommunityIcons
+            name="alert-circle-outline"
+            size={52}
+            color={theme.colors.error}
+          />
+          <Text
+            variant="titleMedium"
+            style={{ color: theme.colors.error, marginTop: 8 }}
+          >
             Connection failed
           </Text>
-          <Text variant="bodyMedium" style={[styles.overlayText, { color: theme.colors.onSurfaceVariant }]}>
+          <Text
+            variant="bodyMedium"
+            style={[
+              styles.overlayText,
+              { color: theme.colors.onSurfaceVariant },
+            ]}
+          >
             {error ?? "An unknown error occurred"}
           </Text>
-          <Button mode="outlined" onPress={handleBack} style={styles.overlayBtn}>
+          <Button
+            mode="outlined"
+            onPress={handleBack}
+            style={styles.overlayBtn}
+          >
             Back
           </Button>
         </>
@@ -79,11 +145,22 @@ function StatusOverlay() {
 
       {status === "disconnected" && (
         <>
-          <MaterialCommunityIcons name="lan-disconnect" size={52} color={theme.colors.onSurfaceVariant} />
-          <Text variant="titleMedium" style={[styles.overlayText, { color: theme.colors.onSurface }]}>
+          <MaterialCommunityIcons
+            name="lan-disconnect"
+            size={52}
+            color={theme.colors.onSurfaceVariant}
+          />
+          <Text
+            variant="titleMedium"
+            style={[styles.overlayText, { color: theme.colors.onSurface }]}
+          >
             Session ended
           </Text>
-          <Button mode="outlined" onPress={handleBack} style={styles.overlayBtn}>
+          <Button
+            mode="outlined"
+            onPress={handleBack}
+            style={styles.overlayBtn}
+          >
             Back
           </Button>
         </>
@@ -91,8 +168,6 @@ function StatusOverlay() {
     </View>
   );
 }
-
-// ── Floating header ─────────────────────────────────────────────────────────
 
 interface FloatingHeaderProps {
   label: string;
@@ -103,14 +178,21 @@ function FloatingHeader({ label, opacity }: FloatingHeaderProps) {
   const theme = useTheme();
   const { status, disconnect } = useTerminalSessionContext();
 
-  const handleMinimize   = useCallback(() => router.back(), []);
-  const handleDisconnect = useCallback(() => { disconnect(); router.back(); }, [disconnect]);
+  const handleMinimize = useCallback(() => router.back(), []);
+  const handleDisconnect = useCallback(() => {
+    disconnect();
+    router.back();
+  }, [disconnect]);
 
   if (status !== "connected") return null;
 
   return (
     <Animated.View
-      style={[styles.floatingHeader, { backgroundColor: theme.colors.surface + "dd" }, { opacity }]}
+      style={[
+        styles.floatingHeader,
+        { backgroundColor: theme.colors.surface + "dd" },
+        { opacity },
+      ]}
       pointerEvents="box-none"
     >
       <IconButton
@@ -118,10 +200,14 @@ function FloatingHeader({ label, opacity }: FloatingHeaderProps) {
         size={20}
         iconColor={theme.colors.onSurface}
         onPress={handleMinimize}
-        accessibilityLabel="Minimize — return to tabs without disconnecting"
+        accessibilityLabel="Minimize"
         style={styles.headerBtn}
       />
-      <Text variant="labelMedium" numberOfLines={1} style={[styles.headerLabel, { color: theme.colors.onSurface }]}>
+      <Text
+        variant="labelMedium"
+        numberOfLines={1}
+        style={[styles.headerLabel, { color: theme.colors.onSurface }]}
+      >
         {label}
       </Text>
       <IconButton
@@ -129,14 +215,12 @@ function FloatingHeader({ label, opacity }: FloatingHeaderProps) {
         size={20}
         iconColor={theme.colors.error}
         onPress={handleDisconnect}
-        accessibilityLabel="Disconnect and close"
+        accessibilityLabel="Disconnect"
         style={styles.headerBtn}
       />
     </Animated.View>
   );
 }
-
-// ── Screen ──────────────────────────────────────────────────────────────────
 
 const SENTINEL = "​"; // zero-width space — never sent to SSH
 
@@ -148,17 +232,44 @@ export default function TerminalScreen() {
 
   const session = get(id ?? "");
 
-  // ── Keyboard input ─────────────────────────────────────────────────────
+  const [modifier, setModifier] = useState<"ctrl" | "alt" | null>(null);
+  const modifierRef = useRef<"ctrl" | "alt" | null>(null);
+  modifierRef.current = modifier;
 
-  const textInputRef      = useRef<TextInput>(null);
+  const toggleModifier = useCallback((mod: "ctrl" | "alt") => {
+    setModifier((prev) => {
+      const next = prev === mod ? null : mod;
+      modifierRef.current = next;
+      return next;
+    });
+  }, []);
+
+  // Single write entry-point: applies the active modifier then clears it.
+  // Both toolbar key presses and soft-keyboard chars funnel through here.
+  const write = useCallback(
+    (data: string) => {
+      const mod = modifierRef.current;
+      if (mod) {
+        modifierRef.current = null;
+        setModifier(null);
+        session?.write(applyModifier(data, mod));
+      } else {
+        session?.write(data);
+      }
+    },
+    [session],
+  );
+
+  const writeRef = useRef(write);
+  writeRef.current = write;
+
+  const textInputRef = useRef<TextInput>(null);
   const isInputFocusedRef = useRef(false);
-  // Tracks the actual native text so we can diff on each onChangeText.
-  // No async setNativeProps reset needed during typing → no accumulation race.
-  const prevTextRef       = useRef(SENTINEL);
+  const prevTextRef = useRef(SENTINEL);
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Only blur→focus when the input is already focused (keyboard was manually
-  // dismissed). Otherwise a plain focus() is enough and avoids the flicker
-  // that keyboardDidHide fires during an unnecessary blur.
+  // Only blur→focus when already focused (keyboard was manually dismissed).
+  // Plain focus() suffices otherwise and avoids the keyboardDidHide flicker.
   const showKeyboard = useCallback(() => {
     if (isInputFocusedRef.current) {
       textInputRef.current?.blur();
@@ -177,21 +288,21 @@ export default function TerminalScreen() {
     return () => clearTimeout(t);
   }, []);
 
-  // ── Pinch-to-resize ────────────────────────────────────────────────────
-
   const pinchStartSize = useRef(fontSize);
 
   const pinchGesture = Gesture.Pinch()
-    .onStart(() => { pinchStartSize.current = fontSize; })
+    .onStart(() => {
+      pinchStartSize.current = fontSize;
+    })
     .onUpdate((e) => {
-      const next = Math.round(Math.max(9, Math.min(24, pinchStartSize.current * e.scale)));
+      const next = Math.round(
+        Math.max(9, Math.min(24, pinchStartSize.current * e.scale)),
+      );
       runOnJS(setFontSize)(next);
     });
 
-  // ── Auto-hide floating header ──────────────────────────────────────────
-
   const headerOpacity = useSharedValue(1);
-  const hideTimer     = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const showHeader = useCallback(() => {
     headerOpacity.value = withTiming(1, { duration: 150 });
@@ -203,15 +314,19 @@ export default function TerminalScreen() {
 
   useEffect(() => {
     showHeader();
-    return () => { if (hideTimer.current) clearTimeout(hideTimer.current); };
+    return () => {
+      if (hideTimer.current) clearTimeout(hideTimer.current);
+    };
   }, [showHeader]);
-
-  // ── Session guard ──────────────────────────────────────────────────────
 
   if (!session) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <Text style={{ color: theme.colors.error, margin: 24 }}>Session not found.</Text>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: theme.colors.background }]}
+      >
+        <Text style={{ color: theme.colors.error, margin: 24 }}>
+          Session not found.
+        </Text>
         <Button onPress={() => router.back()}>Go back</Button>
       </SafeAreaView>
     );
@@ -223,38 +338,65 @@ export default function TerminalScreen() {
 
   const sessionCtx = useMemo<TerminalSessionContextValue>(
     () => ({
-      write: session.write,
+      write,
       disconnect: session.disconnect,
       status: session.status,
       error: session.error,
       cols: session.cols,
       rows: session.rows,
       showKeyboard,
+      modifier,
+      toggleModifier,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [session.write, session.disconnect, session.status, session.error, session.cols, session.rows, showKeyboard],
+    [
+      write,
+      session.disconnect,
+      session.status,
+      session.error,
+      session.cols,
+      session.rows,
+      showKeyboard,
+      modifier,
+      toggleModifier,
+    ],
   );
 
   return (
     <TerminalSessionContext.Provider value={sessionCtx}>
       <SafeAreaView
         edges={["top", "left", "right", "bottom"]}
-        style={[styles.container, { backgroundColor: resolvedTheme.backgroundHex }]}
+        style={[
+          styles.container,
+          { backgroundColor: resolvedTheme.backgroundHex },
+        ]}
       >
         <KeyboardAvoidingView
           style={styles.flex}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
           <GestureDetector gesture={pinchGesture}>
-            <Pressable style={styles.flex} onPress={() => { showHeader(); showKeyboard(); }}>
-              <TerminalCanvas state={session.terminalState} onCellSize={session.resize} style={styles.flex} />
+            <Pressable
+              style={styles.flex}
+              onPress={() => {
+                showHeader();
+                showKeyboard();
+              }}
+            >
+              <TerminalCanvas
+                state={session.terminalState}
+                onCellSize={session.resize}
+                style={styles.flex}
+              />
             </Pressable>
           </GestureDetector>
 
-          {/* Diff-based input receiver — always holds SENTINEL as a baseline.
-              onChangeText compares against prevTextRef to find exactly what
-              changed. No reset on every keystroke → no accumulation race.
-              Buffer is trimmed back to SENTINEL once it grows past 20 chars. */}
+          {/*
+           * Diff-based input: prevTextRef mirrors the native buffer.
+           * onChangeText sends only the delta — no reset during typing, no race.
+           * Idle timer fires after 800 ms of inactivity and safely resets the
+           * buffer at a point when no keystrokes can be in-flight.
+           */}
           <TextInput
             ref={textInputRef}
             style={styles.hiddenInput}
@@ -265,28 +407,34 @@ export default function TerminalScreen() {
             autoComplete="off"
             blurOnSubmit={false}
             defaultValue={SENTINEL}
-            onFocus={() => { isInputFocusedRef.current = true; }}
-            onBlur={()  => { isInputFocusedRef.current = false; }}
+            onFocus={() => {
+              isInputFocusedRef.current = true;
+            }}
+            onBlur={() => {
+              isInputFocusedRef.current = false;
+            }}
             onChangeText={(text) => {
               const prev = prevTextRef.current;
 
               if (text.length > prev.length) {
                 const added = text.slice(prev.length).replace(/​/g, "");
-                if (added === "\n" || added === "\r\n") session.write("\r");
-                else if (added) session.write(added);
+                if (added === "\n" || added === "\r\n") writeRef.current("\r");
+                else if (added) writeRef.current(added);
               } else if (text.length < prev.length) {
-                const deleted = prev.length - text.length;
-                for (let i = 0; i < deleted; i++) session.write("\x7f");
+                for (let i = 0; i < prev.length - text.length; i++)
+                  writeRef.current("\x7f");
               }
 
               prevTextRef.current = text;
 
-              if (text.length > 20) {
+              // Idle reset: safe because 800 ms of silence means no in-flight keystrokes.
+              if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+              idleTimerRef.current = setTimeout(() => {
                 textInputRef.current?.setNativeProps({ text: SENTINEL });
                 prevTextRef.current = SENTINEL;
-              }
+              }, 800);
             }}
-            onSubmitEditing={() => session.write("\r")}
+            onSubmitEditing={() => writeRef.current("\r")}
           />
 
           <TerminalKeyboard />
@@ -297,8 +445,6 @@ export default function TerminalScreen() {
     </TerminalSessionContext.Provider>
   );
 }
-
-// ── Styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
@@ -317,14 +463,8 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 32,
   },
-  overlayText: {
-    textAlign: "center",
-    marginTop: 4,
-  },
-  overlayBtn: {
-    marginTop: 12,
-    minWidth: 110,
-  },
+  overlayText: { textAlign: "center", marginTop: 4 },
+  overlayBtn: { marginTop: 12, minWidth: 110 },
   floatingHeader: {
     position: "absolute",
     top: 0,
@@ -338,8 +478,5 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 12,
   },
   headerBtn: { margin: 0 },
-  headerLabel: {
-    flex: 1,
-    textAlign: "center",
-  },
+  headerLabel: { flex: 1, textAlign: "center" },
 });

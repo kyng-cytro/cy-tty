@@ -1,15 +1,6 @@
-/**
- * DeviceCard — a discovered SSH host from the network scan.
- *
- *   [ 🐧/🍎/🪟/💻 ]  ip / hostname        SSH-2.0-OpenSSH_9.1
- *                                           ←  Connect →
- */
-
 import { StyleSheet, View } from 'react-native';
 import { Card, IconButton, Text, useTheme } from 'react-native-paper';
 import type { DiscoveredHost, GuessedOs } from '@/core/network/scanner';
-
-// ── OS display ────────────────────────────────────────────────────────────────
 
 const OS_EMOJI: Record<GuessedOs, string> = {
   linux: '🐧',
@@ -24,8 +15,6 @@ const OS_LABEL: Record<GuessedOs, string> = {
   windows: 'Windows',
   unknown: 'Unknown OS',
 };
-
-// ── Component ─────────────────────────────────────────────────────────────────
 
 export interface DeviceCardProps {
   host: DiscoveredHost;
@@ -43,12 +32,10 @@ export function DeviceCard({ host, onConnect }: DeviceCardProps) {
       style={[styles.card, { backgroundColor: theme.colors.surface }]}
       contentStyle={styles.cardContent}
     >
-      {/* OS emoji */}
       <View style={styles.emojiWrap}>
         <Text style={styles.emoji}>{emoji}</Text>
       </View>
 
-      {/* Info */}
       <View style={styles.info}>
         <Text
           variant="titleSmall"
@@ -74,7 +61,6 @@ export function DeviceCard({ host, onConnect }: DeviceCardProps) {
         </Text>
       </View>
 
-      {/* Connect */}
       <IconButton
         icon="lan-connect"
         size={20}
@@ -86,8 +72,6 @@ export function DeviceCard({ host, onConnect }: DeviceCardProps) {
     </Card>
   );
 }
-
-// ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   card: {

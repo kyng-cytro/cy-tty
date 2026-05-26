@@ -26,8 +26,6 @@ export function useTerminalSize({
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
 
-  // Subtract all four safe-area insets so the SSH server is told the exact
-  // number of rows/cols that are actually visible on screen.
   const terminalWidth  = width  - insets.left  - insets.right;
   const terminalHeight = height - insets.top   - insets.bottom - toolbarHeight;
 
