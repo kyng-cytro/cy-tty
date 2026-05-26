@@ -1,15 +1,3 @@
-/**
- * TerminalCanvas — full Skia-rendered terminal display.
- *
- * Rendering pipeline:
- *  1. Load all font variants (Regular + Bold for each available font) via Skia useFont.
- *  2. Select the active font from TerminalPreferences.
- *  3. Measure cell dimensions from font metrics.
- *  4. Report cell size to parent so useTerminalSize can compute cols/rows.
- *  5. Render each row via <TerminalRow> (memo'd, only dirty rows repaint).
- *  6. Cursor overlay: XOR rect animated via Reanimated shared value.
- */
-
 import { Canvas, Rect, useFont } from '@shopify/react-native-skia';
 import { useEffect, useMemo } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';

@@ -12,9 +12,11 @@
  *                                             ╚═══╝
  */
 
-import { useCallback, useRef } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import type { BottomSheetModal } from "@gorhom/bottom-sheet";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+import { router } from "expo-router";
+import { useCallback, useRef } from "react";
+import { ScrollView, StyleSheet, View } from "react-native";
 import {
   ActivityIndicator,
   FAB,
@@ -22,22 +24,19 @@ import {
   ProgressBar,
   Text,
   useTheme,
-} from 'react-native-paper';
-import type { BottomSheetModal } from '@gorhom/bottom-sheet';
-import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
-import { router } from 'expo-router';
-import * as Crypto from 'expo-crypto';
+} from "react-native-paper";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { ProfileCard } from '@/components/connection/profile-card';
-import { DeviceCard } from '@/components/connection/device-card';
-import { ConnectionSheet } from '@/components/connection/connection-sheet';
-import { GlobalSearchSheet } from '@/components/search/global-search-sheet';
+import { ConnectionSheet } from "@/components/connection/connection-sheet";
+import { DeviceCard } from "@/components/connection/device-card";
+import { ProfileCard } from "@/components/connection/profile-card";
+import { GlobalSearchSheet } from "@/components/search/global-search-sheet";
 
-import { useProfiles } from '@/hooks/use-profiles';
-import { useNetworkScan } from '@/hooks/use-network-scan';
-import { useSessionManager } from '@/core/sessions/session-manager';
-import type { SshProfile } from '@/core/profiles/types';
-import type { DiscoveredHost } from '@/core/network/scanner';
+import type { DiscoveredHost } from "@/core/network/scanner";
+import type { SshProfile } from "@/core/profiles/types";
+import { useSessionManager } from "@/core/sessions/session-manager";
+import { useNetworkScan } from "@/hooks/use-network-scan";
+import { useProfiles } from "@/hooks/use-profiles";
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -51,7 +50,7 @@ export default function ConnectScreen() {
   const sheetRef = useRef<BottomSheetModal>(null);
   const searchRef = useRef<BottomSheetModal>(null);
   const editingProfile = useRef<SshProfile | undefined>(undefined);
-  const prefillHost = useRef('');
+  const prefillHost = useRef("");
 
   // ── Connect helpers ───────────────────────────────────────────────────────
 
@@ -60,13 +59,13 @@ export default function ConnectScreen() {
       void touch(profile.id);
       const sessionId = create(profile);
       router.push({
-        pathname: '/terminal/[id]',
+        pathname: "/terminal/[id]",
         params: {
           id: sessionId,
           host: profile.host,
           port: String(profile.port),
           username: profile.username,
-          password: profile.password ?? '',
+          password: profile.password ?? "",
         },
       });
     },
@@ -81,18 +80,15 @@ export default function ConnectScreen() {
     [save, launchSession],
   );
 
-  const handleConnectDevice = useCallback(
-    (host: DiscoveredHost) => {
-      prefillHost.current = host.ip;
-      editingProfile.current = undefined;
-      sheetRef.current?.present();
-    },
-    [],
-  );
+  const handleConnectDevice = useCallback((host: DiscoveredHost) => {
+    prefillHost.current = host.ip;
+    editingProfile.current = undefined;
+    sheetRef.current?.present();
+  }, []);
 
   const handleEditProfile = useCallback((profile: SshProfile) => {
     editingProfile.current = profile;
-    prefillHost.current = '';
+    prefillHost.current = "";
     sheetRef.current?.present();
   }, []);
 
@@ -103,30 +99,35 @@ export default function ConnectScreen() {
     [remove],
   );
 
-  const handleResumeSession = useCallback((sessionId: string) => {
-    const session = sessions.get(sessionId);
-    if (!session) return;
-    router.push({
-      pathname: '/terminal/[id]',
-      params: {
-        id: sessionId,
-        host: session.profile.host,
-        port: String(session.profile.port),
-        username: session.profile.username,
-      },
-    });
-  }, [sessions]);
+  const handleResumeSession = useCallback(
+    (sessionId: string) => {
+      const session = sessions.get(sessionId);
+      if (!session) return;
+      router.push({
+        pathname: "/terminal/[id]",
+        params: {
+          id: sessionId,
+          host: session.profile.host,
+          port: String(session.profile.port),
+          username: session.profile.username,
+        },
+      });
+    },
+    [sessions],
+  );
 
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <BottomSheetModalProvider>
       <SafeAreaView
-        edges={['top', 'left', 'right']}
+        edges={["top", "left", "right"]}
         style={[styles.container, { backgroundColor: theme.colors.background }]}
       >
         {/* ── Header ─────────────────────────────────────────────────────── */}
-        <View style={[styles.header, { borderBottomColor: theme.colors.outline }]}>
+        <View
+          style={[styles.header, { borderBottomColor: theme.colors.outline }]}
+        >
           <Text
             variant="headlineMedium"
             style={[styles.appName, { color: theme.colors.primary }]}
@@ -156,25 +157,34 @@ export default function ConnectScreen() {
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
         >
-
           {/* Devices on Network */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text
                 variant="titleSmall"
-                style={[styles.sectionTitle, { color: theme.colors.onSurfaceVariant }]}
+                style={[
+                  styles.sectionTitle,
+                  { color: theme.colors.onSurfaceVariant },
+                ]}
               >
                 DEVICES ON NETWORK
               </Text>
               {scanning && (
-                <ActivityIndicator size={12} color={theme.colors.primary} style={{ marginLeft: 8 }} />
+                <ActivityIndicator
+                  size={12}
+                  color={theme.colors.primary}
+                  style={{ marginLeft: 8 }}
+                />
               )}
             </View>
 
             {!scanning && hosts.length === 0 && (
               <Text
                 variant="bodySmall"
-                style={[styles.emptyHint, { color: theme.colors.onSurfaceVariant }]}
+                style={[
+                  styles.emptyHint,
+                  { color: theme.colors.onSurfaceVariant },
+                ]}
               >
                 No SSH devices found on this network.
               </Text>
@@ -188,7 +198,11 @@ export default function ConnectScreen() {
           <View style={styles.section}>
             <Text
               variant="titleSmall"
-              style={[styles.sectionTitle, styles.sectionTitleStandalone, { color: theme.colors.onSurfaceVariant }]}
+              style={[
+                styles.sectionTitle,
+                styles.sectionTitleStandalone,
+                { color: theme.colors.onSurfaceVariant },
+              ]}
             >
               RECENT CONNECTIONS
             </Text>
@@ -196,7 +210,10 @@ export default function ConnectScreen() {
             {profiles.length === 0 && (
               <Text
                 variant="bodySmall"
-                style={[styles.emptyHint, { color: theme.colors.onSurfaceVariant }]}
+                style={[
+                  styles.emptyHint,
+                  { color: theme.colors.onSurfaceVariant },
+                ]}
               >
                 Tap + to add your first connection.
               </Text>
@@ -220,7 +237,7 @@ export default function ConnectScreen() {
           color={theme.colors.onPrimary}
           onPress={() => {
             editingProfile.current = undefined;
-            prefillHost.current = '';
+            prefillHost.current = "";
             sheetRef.current?.present();
           }}
           accessibilityLabel="Add new connection"
@@ -237,11 +254,11 @@ export default function ConnectScreen() {
         <GlobalSearchSheet
           ref={searchRef}
           profiles={profiles}
-          sessions={Array.from(sessions.values())}
           scannedHosts={hosts}
           onConnectProfile={launchSession}
           onConnectHost={handleConnectDevice}
           onResumeSession={handleResumeSession}
+          sessions={Array.from(sessions.values())}
         />
       </SafeAreaView>
     </BottomSheetModalProvider>
@@ -255,15 +272,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   appName: {
     flex: 1,
-    fontWeight: '800',
+    fontWeight: "800",
     letterSpacing: -0.5,
   },
   progressBar: {
@@ -276,8 +293,8 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
   sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 16,
     marginBottom: 8,
   },
@@ -295,7 +312,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   fab: {
-    position: 'absolute',
+    position: "absolute",
     right: 20,
     bottom: 24,
     borderRadius: 16,

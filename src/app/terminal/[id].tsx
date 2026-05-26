@@ -1,29 +1,6 @@
-/**
- * Terminal screen — attaches to a LiveSession from SessionManager.
- *
- * Key design decisions:
- *   • Reads the session by ID from SessionManager (not TerminalSession).
- *     This means navigating away (Minimize ←) keeps the SSH session alive
- *     and coming back resumes the exact same connection — no reconnect.
- *   • A hidden <TextInput> receives soft-keyboard input and forwards every
- *     character to session.write(). Pressing anywhere on the canvas (or the
- *     keyboard icon in the toolbar) re-focuses it.
- *   • A PinchGestureHandler adjusts font size live; the new size is committed
- *     to TerminalPreferences (and AsyncStorage) on gesture end.
- *
- * Layout:
- *   SafeAreaView (all 4 edges — bottom keeps toolbar above home indicator)
- *     KeyboardAvoidingView
- *       GestureDetector (pinch → font size)
- *         Pressable (tap → show header + focus keyboard)
- *           TerminalCanvas
- *       HiddenTextInput    ← receives soft-keyboard characters
- *       TerminalKeyboard   ← Ctrl / Tab / arrows / Esc / keyboard-toggle
- *       StatusOverlay      ← connecting / error / disconnected
- *       FloatingHeader     ← auto-hides; Minimize ← | label | Disconnect ✕
- */
-
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import { router, useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -31,28 +8,32 @@ import {
   StyleSheet,
   TextInput,
   View,
-} from 'react-native';
+} from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import {
+  ActivityIndicator,
+  Button,
+  IconButton,
+  Text,
+  useTheme,
+} from "react-native-paper";
 import Animated, {
   runOnJS,
   useSharedValue,
   withTiming,
   type SharedValue,
-} from 'react-native-reanimated';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { ActivityIndicator, Button, IconButton, Text, useTheme } from 'react-native-paper';
-import { router, useLocalSearchParams } from 'expo-router';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+} from "react-native-reanimated";
+import { SafeAreaView } from "react-native-safe-area-context";
 
+import { TerminalCanvas } from "@/components/terminal/terminal-canvas";
+import { TerminalKeyboard } from "@/components/terminal/terminal-keyboard";
 import {
   TerminalSessionContext,
   useTerminalSessionContext,
   type TerminalSessionContextValue,
-} from '@/components/terminal/terminal-session';
-import { TerminalCanvas } from '@/components/terminal/terminal-canvas';
-import { TerminalKeyboard } from '@/components/terminal/terminal-keyboard';
-import { useSessionManager } from '@/core/sessions/session-manager';
-import { useTerminalPreferences } from '@/core/theme/preferences-context';
+} from "@/components/terminal/terminal-session";
+import { useSessionManager } from "@/core/sessions/session-manager";
+import { useTerminalPreferences } from "@/core/theme/preferences-context";
 
 // ── Status overlay ─────────────────────────────────────────────────────────
 
@@ -60,7 +41,7 @@ function StatusOverlay() {
   const theme = useTheme();
   const { status, error, disconnect } = useTerminalSessionContext();
 
-  if (status === 'connected') return null;
+  if (status === "connected") return null;
 
   const handleBack = () => {
     disconnect();
@@ -68,8 +49,8 @@ function StatusOverlay() {
   };
 
   return (
-    <View style={[styles.overlay, { backgroundColor: theme.colors.surface + 'ee' }]}>
-      {status === 'connecting' && (
+    <View style={[styles.overlay, { backgroundColor: theme.colors.surface + "ee" }]}>
+      {status === "connecting" && (
         <>
           <ActivityIndicator size="large" color={theme.colors.primary} />
           <Text variant="bodyLarge" style={[styles.overlayText, { color: theme.colors.onSurface }]}>
@@ -81,17 +62,14 @@ function StatusOverlay() {
         </>
       )}
 
-      {(status === 'idle' || status === 'error') && (
+      {(status === "idle" || status === "error") && (
         <>
           <MaterialCommunityIcons name="alert-circle-outline" size={52} color={theme.colors.error} />
           <Text variant="titleMedium" style={{ color: theme.colors.error, marginTop: 8 }}>
             Connection failed
           </Text>
-          <Text
-            variant="bodyMedium"
-            style={[styles.overlayText, { color: theme.colors.onSurfaceVariant }]}
-          >
-            {error ?? 'An unknown error occurred'}
+          <Text variant="bodyMedium" style={[styles.overlayText, { color: theme.colors.onSurfaceVariant }]}>
+            {error ?? "An unknown error occurred"}
           </Text>
           <Button mode="outlined" onPress={handleBack} style={styles.overlayBtn}>
             Back
@@ -99,13 +77,9 @@ function StatusOverlay() {
         </>
       )}
 
-      {status === 'disconnected' && (
+      {status === "disconnected" && (
         <>
-          <MaterialCommunityIcons
-            name="lan-disconnect"
-            size={52}
-            color={theme.colors.onSurfaceVariant}
-          />
+          <MaterialCommunityIcons name="lan-disconnect" size={52} color={theme.colors.onSurfaceVariant} />
           <Text variant="titleMedium" style={[styles.overlayText, { color: theme.colors.onSurface }]}>
             Session ended
           </Text>
@@ -129,23 +103,14 @@ function FloatingHeader({ label, opacity }: FloatingHeaderProps) {
   const theme = useTheme();
   const { status, disconnect } = useTerminalSessionContext();
 
-  const handleMinimize = useCallback(() => router.back(), []);
+  const handleMinimize   = useCallback(() => router.back(), []);
+  const handleDisconnect = useCallback(() => { disconnect(); router.back(); }, [disconnect]);
 
-  const handleDisconnect = useCallback(() => {
-    disconnect();
-    router.back();
-  }, [disconnect]);
-
-  // Only render when connected — overlay handles other states
-  if (status !== 'connected') return null;
+  if (status !== "connected") return null;
 
   return (
     <Animated.View
-      style={[
-        styles.floatingHeader,
-        { backgroundColor: theme.colors.surface + 'dd' },
-        { opacity },
-      ]}
+      style={[styles.floatingHeader, { backgroundColor: theme.colors.surface + "dd" }, { opacity }]}
       pointerEvents="box-none"
     >
       <IconButton
@@ -156,11 +121,7 @@ function FloatingHeader({ label, opacity }: FloatingHeaderProps) {
         accessibilityLabel="Minimize — return to tabs without disconnecting"
         style={styles.headerBtn}
       />
-      <Text
-        variant="labelMedium"
-        numberOfLines={1}
-        style={[styles.headerLabel, { color: theme.colors.onSurface }]}
-      >
+      <Text variant="labelMedium" numberOfLines={1} style={[styles.headerLabel, { color: theme.colors.onSurface }]}>
         {label}
       </Text>
       <IconButton
@@ -177,62 +138,60 @@ function FloatingHeader({ label, opacity }: FloatingHeaderProps) {
 
 // ── Screen ──────────────────────────────────────────────────────────────────
 
+const SENTINEL = "​"; // zero-width space — never sent to SSH
+
 export default function TerminalScreen() {
   const theme = useTheme();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { get } = useSessionManager();
-  const { setFontSize, fontSize } = useTerminalPreferences();
+  const { setFontSize, fontSize, resolvedTheme } = useTerminalPreferences();
 
-  const session = get(id ?? '');
+  const session = get(id ?? "");
 
-  // ── Soft keyboard via hidden TextInput ─────────────────────────────────
-  const textInputRef = useRef<TextInput>(null);
+  // ── Keyboard input ─────────────────────────────────────────────────────
 
-  // Sentinel character always kept in the TextInput so `onChangeText` can
-  // detect Backspace (text becomes '' when the sentinel is deleted).
-  const SENTINEL = '​'; // zero-width space — invisible, never sent to SSH
+  const textInputRef      = useRef<TextInput>(null);
+  const isInputFocusedRef = useRef(false);
+  // Tracks the actual native text so we can diff on each onChangeText.
+  // No async setNativeProps reset needed during typing → no accumulation race.
+  const prevTextRef       = useRef(SENTINEL);
 
-  const resetSentinel = useCallback(() => {
-    textInputRef.current?.setNativeProps({ text: SENTINEL });
+  // Only blur→focus when the input is already focused (keyboard was manually
+  // dismissed). Otherwise a plain focus() is enough and avoids the flicker
+  // that keyboardDidHide fires during an unnecessary blur.
+  const showKeyboard = useCallback(() => {
+    if (isInputFocusedRef.current) {
+      textInputRef.current?.blur();
+      requestAnimationFrame(() => textInputRef.current?.focus());
+    } else {
+      textInputRef.current?.focus();
+    }
   }, []);
 
-  // blur → focus cycle forces the soft keyboard to appear even when the
-  // input is already focused but the user manually dismissed the keyboard.
-  const showKeyboard = useCallback(() => {
-    textInputRef.current?.blur();
-    setTimeout(() => {
-      textInputRef.current?.focus();
-      resetSentinel();
-    }, 50);
-  }, [resetSentinel]);
-
-  // Auto-focus + seed sentinel when the terminal screen mounts
   useEffect(() => {
     const t = setTimeout(() => {
       textInputRef.current?.focus();
-      resetSentinel();
+      textInputRef.current?.setNativeProps({ text: SENTINEL });
+      prevTextRef.current = SENTINEL;
     }, 350);
     return () => clearTimeout(t);
-  }, [resetSentinel]);
+  }, []);
 
   // ── Pinch-to-resize ────────────────────────────────────────────────────
-  // Capture font size at the START of the pinch so scale is relative to it.
+
   const pinchStartSize = useRef(fontSize);
 
   const pinchGesture = Gesture.Pinch()
-    .onStart(() => {
-      pinchStartSize.current = fontSize;
-    })
+    .onStart(() => { pinchStartSize.current = fontSize; })
     .onUpdate((e) => {
-      const next = Math.round(
-        Math.max(9, Math.min(24, pinchStartSize.current * e.scale)),
-      );
+      const next = Math.round(Math.max(9, Math.min(24, pinchStartSize.current * e.scale)));
       runOnJS(setFontSize)(next);
     });
 
   // ── Auto-hide floating header ──────────────────────────────────────────
+
   const headerOpacity = useSharedValue(1);
-  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hideTimer     = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const showHeader = useCallback(() => {
     headerOpacity.value = withTiming(1, { duration: 150 });
@@ -244,12 +203,11 @@ export default function TerminalScreen() {
 
   useEffect(() => {
     showHeader();
-    return () => {
-      if (hideTimer.current) clearTimeout(hideTimer.current);
-    };
+    return () => { if (hideTimer.current) clearTimeout(hideTimer.current); };
   }, [showHeader]);
 
-  // ── Session not found (expired / invalid id) ───────────────────────────
+  // ── Session guard ──────────────────────────────────────────────────────
+
   if (!session) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -263,9 +221,6 @@ export default function TerminalScreen() {
     ? `${session.profile.username}@${session.profile.host}`
     : session.profile.host;
 
-  // ── Provide session data via TerminalSessionContext ────────────────────
-  // Children (TerminalKeyboard, StatusOverlay, FloatingHeader) consume this
-  // via useTerminalSessionContext() — no prop drilling needed.
   const sessionCtx = useMemo<TerminalSessionContextValue>(
     () => ({
       write: session.write,
@@ -283,45 +238,23 @@ export default function TerminalScreen() {
   return (
     <TerminalSessionContext.Provider value={sessionCtx}>
       <SafeAreaView
-        edges={['top', 'left', 'right', 'bottom']}
-        style={[styles.container, { backgroundColor: '#1a1b26' }]}
+        edges={["top", "left", "right", "bottom"]}
+        style={[styles.container, { backgroundColor: resolvedTheme.backgroundHex }]}
       >
         <KeyboardAvoidingView
           style={styles.flex}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          {/* Canvas + pinch gesture + tap-to-focus */}
           <GestureDetector gesture={pinchGesture}>
-            <Pressable
-              style={styles.flex}
-              onPress={() => {
-                showHeader();
-                showKeyboard();
-              }}
-            >
-              <TerminalCanvas
-                state={session.terminalState}
-                onCellSize={session.resize}
-                style={styles.flex}
-              />
+            <Pressable style={styles.flex} onPress={() => { showHeader(); showKeyboard(); }}>
+              <TerminalCanvas state={session.terminalState} onCellSize={session.resize} style={styles.flex} />
             </Pressable>
           </GestureDetector>
 
-          {/*
-           * Hidden TextInput — the actual keyboard receiver.
-           *
-           * Sentinel design: the input always holds a single zero-width space
-           * (SENTINEL). Every keystroke appends to (or deletes from) that
-           * baseline. We strip the sentinel from whatever `onChangeText`
-           * receives and send only the real characters. This prevents the
-           * char-accumulation bug caused by the async `setNativeProps` clear.
-           *
-           * Backspace detection: when the user presses Backspace the sentinel
-           * is consumed → text becomes '' → we send DEL (\x7f).
-           *
-           * Enter: handled by `onSubmitEditing` (fires without dismissing
-           * because blurOnSubmit={false}).
-           */}
+          {/* Diff-based input receiver — always holds SENTINEL as a baseline.
+              onChangeText compares against prevTextRef to find exactly what
+              changed. No reset on every keystroke → no accumulation race.
+              Buffer is trimmed back to SENTINEL once it grows past 20 chars. */}
           <TextInput
             ref={textInputRef}
             style={styles.hiddenInput}
@@ -332,33 +265,32 @@ export default function TerminalScreen() {
             autoComplete="off"
             blurOnSubmit={false}
             defaultValue={SENTINEL}
+            onFocus={() => { isInputFocusedRef.current = true; }}
+            onBlur={()  => { isInputFocusedRef.current = false; }}
             onChangeText={(text) => {
-              // Strip the sentinel marker; what's left is what the user typed.
-              const stripped = text.replace(/​/g, ''); // zero-width space
-              if (stripped.length > 0) {
-                // Handle newlines from some Android keyboards
-                session.write(stripped === '\n' || stripped === '\r\n' ? '\r' : stripped);
-              } else if (text.length === 0) {
-                // Sentinel was deleted → Backspace
-                session.write('\x7f');
+              const prev = prevTextRef.current;
+
+              if (text.length > prev.length) {
+                const added = text.slice(prev.length).replace(/​/g, "");
+                if (added === "\n" || added === "\r\n") session.write("\r");
+                else if (added) session.write(added);
+              } else if (text.length < prev.length) {
+                const deleted = prev.length - text.length;
+                for (let i = 0; i < deleted; i++) session.write("\x7f");
               }
-              // Always restore the sentinel so the next keystroke has a baseline
-              resetSentinel();
+
+              prevTextRef.current = text;
+
+              if (text.length > 20) {
+                textInputRef.current?.setNativeProps({ text: SENTINEL });
+                prevTextRef.current = SENTINEL;
+              }
             }}
-            // Return key sends \r without dismissing the keyboard
-            onSubmitEditing={() => {
-              session.write('\r');
-              resetSentinel();
-            }}
+            onSubmitEditing={() => session.write("\r")}
           />
 
-          {/* Toolbar — Ctrl / Tab / arrows / Esc / keyboard-show */}
           <TerminalKeyboard />
-
-          {/* Connection state overlays */}
           <StatusOverlay />
-
-          {/* Auto-hiding header — rendered last so it floats above everything */}
           <FloatingHeader label={label} opacity={headerOpacity} />
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -372,21 +304,21 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   flex: { flex: 1 },
   hiddenInput: {
-    position: 'absolute',
+    position: "absolute",
     width: 1,
     height: 1,
     opacity: 0,
-    bottom: 44, // sit just above the keyboard toolbar
+    bottom: 44,
   },
   overlay: {
     ...StyleSheet.absoluteFill,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     gap: 8,
     paddingHorizontal: 32,
   },
   overlayText: {
-    textAlign: 'center',
+    textAlign: "center",
     marginTop: 4,
   },
   overlayBtn: {
@@ -394,12 +326,12 @@ const styles = StyleSheet.create({
     minWidth: 110,
   },
   floatingHeader: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     height: 48,
     paddingHorizontal: 4,
     borderBottomLeftRadius: 12,
@@ -408,6 +340,6 @@ const styles = StyleSheet.create({
   headerBtn: { margin: 0 },
   headerLabel: {
     flex: 1,
-    textAlign: 'center',
+    textAlign: "center",
   },
 });
