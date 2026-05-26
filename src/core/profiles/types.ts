@@ -1,4 +1,4 @@
-export type AuthMethod = 'password' | 'key';
+export type AuthMethod = 'none' | 'key' | 'password';
 
 export interface SshProfile {
   id: string;
@@ -9,6 +9,7 @@ export interface SshProfile {
   authMethod: AuthMethod;
   password?: string;
   privateKeyId?: string;
+  keyPassphrase?: string;
   lastConnected?: number;
   createdAt: number;
 }

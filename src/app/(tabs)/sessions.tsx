@@ -57,11 +57,6 @@ function SessionRow({ session }: { session: LiveSession }) {
       left={{
         onAction: () => destroy(session.id),
         icon: "close-circle-outline",
-        confirm: {
-          title: "End Session",
-          message: `End the session for "${session.profile.label}"?`,
-          label: "End",
-        },
       }}
     >
       <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
@@ -102,7 +97,9 @@ function SessionRow({ session }: { session: LiveSession }) {
 export default function SessionsScreen() {
   const theme = useTheme();
   const { sessions } = useSessionManager();
-  const sessionList = Array.from(sessions.values());
+  const sessionList = Array.from(sessions.values()).filter(
+    (s) => s.status !== "connecting" && s.status !== "idle",
+  );
 
   return (
     <SafeAreaView

@@ -1,5 +1,6 @@
-import { forwardRef, useCallback, useRef, useState } from "react";
-import { Alert, Keyboard, ScrollView, StyleSheet, View } from "react-native";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
+import { Alert, Keyboard, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import {
   BottomSheetModal,
   BottomSheetView,
@@ -8,14 +9,14 @@ import {
 } from "@gorhom/bottom-sheet";
 import {
   Button,
-  Chip,
   HelperText,
+  SegmentedButtons,
   Text,
   TextInput,
   useTheme,
 } from "react-native-paper";
 import * as DocumentPicker from "expo-document-picker";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import * as Crypto from "expo-crypto";
 
 import { KeyStore, type KeyMeta } from "@/core/keys/key-store";
@@ -40,9 +41,7 @@ function validate(
   if (!port.trim() || !Number.isInteger(n) || n < 1 || n > 65535) {
     errors.port = "Port must be 1–65535";
   }
-  if (authMethod === "key" && !selectedKeyId) {
-    errors.key = "Select or import an SSH key";
-  }
+  if (authMethod === "key" && !selectedKeyId) errors.key = "Select or import an SSH key";
   return errors;
 }
 
@@ -57,9 +56,10 @@ export const ConnectionSheet = forwardRef<
   const portRef = useRef(String(editProfile?.port ?? 22));
   const usernameRef = useRef(editProfile?.username ?? "");
   const passwordRef = useRef(editProfile?.password ?? "");
+  const passphraseRef = useRef(editProfile?.keyPassphrase ?? "");
 
   const [authMethod, setAuthMethod] = useState<AuthMethod>(
-    editProfile?.authMethod ?? "password",
+    editProfile?.authMethod ?? "none",
   );
   const [showPassword, setShowPassword] = useState(false);
   const [keys, setKeys] = useState<KeyMeta[]>([]);
@@ -71,6 +71,24 @@ export const ConnectionSheet = forwardRef<
   const [importingKey, setImportingKey] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
+
+  useEffect(() => {
+    labelRef.current = editProfile?.label ?? "";
+    hostRef.current = editProfile?.host ?? initialHost;
+    portRef.current = String(editProfile?.port ?? 22);
+    usernameRef.current = editProfile?.username ?? "";
+    passwordRef.current = editProfile?.password ?? "";
+    passphraseRef.current = editProfile?.keyPassphrase ?? "";
+    setAuthMethod(editProfile?.authMethod ?? "none");
+    setSelectedKeyId(editProfile?.privateKeyId ?? null);
+    setShowPassword(false);
+    setShowPasteArea(false);
+    setPemText("");
+    setFormErrors({});
+    setSubmitted(false);
+    setResetKey((k) => k + 1);
+  }, [editProfile, initialHost]);
 
   const showError = (field: string) => submitted && !!formErrors[field];
 
@@ -78,12 +96,15 @@ export const ConnectionSheet = forwardRef<
     setKeys(await KeyStore.list());
   }, []);
 
+  useEffect(() => {
+    if (authMethod === "key") void loadKeys();
+  }, [authMethod, loadKeys]);
+
   const handleAuthMethodChange = useCallback(
     (method: AuthMethod) => {
       setAuthMethod(method);
-      if (method === "key") void loadKeys();
     },
-    [loadKeys],
+    [],
   );
 
   const handlePickFile = useCallback(async () => {
@@ -93,7 +114,13 @@ export const ConnectionSheet = forwardRef<
     });
     if (result.canceled || !result.assets?.[0]) return;
     try {
-      setPemText(await FileSystem.readAsStringAsync(result.assets[0].uri));
+      let uri = result.assets[0].uri;
+      if (!uri.startsWith("file://")) {
+        const dest = (FileSystem.cacheDirectory ?? "") + `picked_key_${Date.now()}.pem`;
+        await FileSystem.copyAsync({ from: uri, to: dest });
+        uri = dest;
+      }
+      setPemText(await FileSystem.readAsStringAsync(uri));
       setShowPasteArea(true);
     } catch {
       Alert.alert("Error", "Could not read the selected file.");
@@ -105,7 +132,7 @@ export const ConnectionSheet = forwardRef<
     setImportingKey(true);
     try {
       const id = await KeyStore.import(pemText.trim(), `Key ${Date.now()}`);
-      setKeys(await KeyStore.list());
+      await loadKeys();
       setSelectedKeyId(id);
       setShowPasteArea(false);
       setPemText("");
@@ -125,6 +152,7 @@ export const ConnectionSheet = forwardRef<
     const username = usernameRef.current.trim();
     const label = labelRef.current.trim();
     const password = passwordRef.current;
+    const keyPassphrase = passphraseRef.current;
 
     const errors = validate(host, port, authMethod, selectedKeyId);
     setFormErrors(errors);
@@ -141,7 +169,12 @@ export const ConnectionSheet = forwardRef<
       authMethod,
       ...(authMethod === "password"
         ? { password }
-        : { privateKeyId: selectedKeyId! }),
+        : authMethod === "key"
+        ? {
+            privateKeyId: selectedKeyId!,
+            ...(keyPassphrase ? { keyPassphrase } : {}),
+          }
+        : {}),
       createdAt: editProfile?.createdAt ?? Date.now(),
       lastConnected: editProfile?.lastConnected,
     });
@@ -173,6 +206,7 @@ export const ConnectionSheet = forwardRef<
     >
       <BottomSheetView style={styles.sheetView}>
         <ScrollView
+          key={resetKey}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scroll}
@@ -253,24 +287,16 @@ export const ConnectionSheet = forwardRef<
           >
             Authentication
           </Text>
-          <View style={styles.chips}>
-            <Chip
-              selected={authMethod === "password"}
-              onPress={() => handleAuthMethodChange("password")}
-              icon="lock"
-              style={styles.chip}
-            >
-              Password
-            </Chip>
-            <Chip
-              selected={authMethod === "key"}
-              onPress={() => handleAuthMethodChange("key")}
-              icon="key"
-              style={styles.chip}
-            >
-              SSH Key
-            </Chip>
-          </View>
+          <SegmentedButtons
+            value={authMethod}
+            onValueChange={(v) => handleAuthMethodChange(v as AuthMethod)}
+            style={styles.segmented}
+            buttons={[
+              { value: "none",     label: "None",     icon: "minus-circle-outline" },
+              { value: "key",      label: "SSH Key",  icon: "key" },
+              { value: "password", label: "Password", icon: "lock" },
+            ]}
+          />
 
           {authMethod === "password" && (
             <TextInput
@@ -298,24 +324,54 @@ export const ConnectionSheet = forwardRef<
                 <>
                   <Text
                     variant="labelSmall"
-                    style={{
-                      color: theme.colors.onSurfaceVariant,
-                      marginBottom: 6,
-                    }}
+                    style={{ color: theme.colors.onSurfaceVariant, marginBottom: 4 }}
                   >
                     Saved keys
                   </Text>
-                  {keys.map((k) => (
-                    <Chip
-                      key={k.id}
-                      selected={selectedKeyId === k.id}
-                      onPress={() => setSelectedKeyId(k.id)}
-                      icon="key-variant"
-                      style={styles.chip}
-                    >
-                      {k.label}
-                    </Chip>
-                  ))}
+                  {keys.map((k) => {
+                    const selected = selectedKeyId === k.id;
+                    return (
+                      <Pressable
+                        key={k.id}
+                        onPress={() => setSelectedKeyId(k.id)}
+                        style={[
+                          styles.keyRow,
+                          {
+                            backgroundColor: selected
+                              ? theme.colors.primaryContainer
+                              : theme.colors.surfaceVariant,
+                            borderColor: selected
+                              ? theme.colors.primary
+                              : "transparent",
+                          },
+                        ]}
+                        android_ripple={{ color: theme.colors.primary + "33" }}
+                      >
+                        <MaterialCommunityIcons
+                          name="key-variant"
+                          size={18}
+                          color={selected ? theme.colors.primary : theme.colors.onSurfaceVariant}
+                        />
+                        <Text
+                          variant="bodyMedium"
+                          style={{
+                            flex: 1,
+                            color: selected ? theme.colors.onPrimaryContainer : theme.colors.onSurfaceVariant,
+                          }}
+                          numberOfLines={1}
+                        >
+                          {k.label}
+                        </Text>
+                        {selected && (
+                          <MaterialCommunityIcons
+                            name="check-circle"
+                            size={18}
+                            color={theme.colors.primary}
+                          />
+                        )}
+                      </Pressable>
+                    );
+                  })}
                 </>
               )}
 
@@ -368,6 +424,16 @@ export const ConnectionSheet = forwardRef<
               <HelperText type="error" visible={showError("key")}>
                 {formErrors.key}
               </HelperText>
+
+              <TextInput
+                label="Key passphrase (optional)"
+                defaultValue={passphraseRef.current}
+                onChangeText={(t) => { passphraseRef.current = t; }}
+                mode="outlined"
+                secureTextEntry
+                style={styles.input}
+                left={<TextInput.Icon icon="shield-key-outline" />}
+              />
             </View>
           )}
 
@@ -397,9 +463,19 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   input: { marginBottom: 0 },
-  chips: { flexDirection: "row", gap: 8, marginBottom: 8 },
+  segmented: { marginBottom: 8 },
   chip: { flexShrink: 1 },
   keySection: { gap: 8 },
+  keyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    overflow: "hidden",
+  },
   importRow: { flexDirection: "row", gap: 8, marginTop: 4 },
   importBtn: { flex: 1 },
   pemInput: { minHeight: 120, fontFamily: "monospace" },

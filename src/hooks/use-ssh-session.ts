@@ -1,12 +1,12 @@
-import { SshClient } from 'expo-ssh';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { SshClient } from "expo-ssh";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export type SshSessionStatus =
-  | 'idle'
-  | 'connecting'
-  | 'connected'
-  | 'error'
-  | 'disconnected';
+  | "idle"
+  | "connecting"
+  | "connected"
+  | "error"
+  | "disconnected";
 
 export interface UseSshSessionOptions {
   host: string;
@@ -27,14 +27,46 @@ export interface UseSshSessionResult {
   disconnect: () => void;
 }
 
+const FRIENDLY_ERRORS: [RegExp, string][] = [
+  [/auth\s*fail/i, "Authentication failed — wrong username or password"],
+  [
+    /reject\s*host\s*key/i,
+    "Host key rejected — accept the server fingerprint first",
+  ],
+  [
+    /host\s*key.*mismatch/i,
+    "Host key mismatch — the server fingerprint has changed",
+  ],
+  [
+    /connection\s*refused/i,
+    "Connection refused — check the host address and port",
+  ],
+  [
+    /no\s*route\s*to\s*host/i,
+    "No route to host — check your network connection",
+  ],
+  [/network.*unreachable/i, "Network unreachable"],
+  [/unknown\s*host/i, "Host not found — check the hostname or IP address"],
+  [/timeout/i, "Connection timed out"],
+  [/too\s*many\s*auth/i, "Too many failed authentication attempts"],
+  [/permission\s*denied/i, "Permission denied"],
+];
+
 function extractMessage(err: unknown): string {
   const raw = err instanceof Error ? err.message : String(err);
-  const firstLine = raw.split('\n')[0].trim();
-  const colonIdx = firstLine.lastIndexOf(': ');
-  if (colonIdx !== -1 && firstLine.slice(0, colonIdx).includes('.')) {
-    return firstLine.slice(colonIdx + 2) || 'Connection failed';
+  const firstLine = raw.split("\n")[0].trim();
+  // Strip leading Java class path (e.g. "com.jcraft.jsch.JSchException: ...")
+  // Use indexOf so the rest of the message is kept intact.
+  const colonIdx = firstLine.indexOf(": ");
+  const stripped =
+    colonIdx !== -1 && /^[\w.]+$/.test(firstLine.slice(0, colonIdx))
+      ? firstLine.slice(colonIdx + 2)
+      : firstLine;
+  const msg = stripped || "Connection failed";
+  for (const [pattern, friendly] of FRIENDLY_ERRORS) {
+    if (pattern.test(msg)) return friendly;
   }
-  return firstLine || 'Connection failed';
+  return msg;
 }
 
 export function useSshSession({
@@ -43,12 +75,12 @@ export function useSshSession({
   username,
   password,
   privateKeyPem,
-  keyPassphrase = '',
+  keyPassphrase = "",
   cols,
   rows,
   onData,
 }: UseSshSessionOptions): UseSshSessionResult {
-  const [status, setStatus] = useState<SshSessionStatus>('idle');
+  const [status, setStatus] = useState<SshSessionStatus>("idle");
   const [error, setError] = useState<string | null>(null);
 
   const onDataRef = useRef(onData);
@@ -69,31 +101,37 @@ export function useSshSession({
     const errorSub = SshClient.onError(({ message }) => {
       if (!alive) return;
       setError(extractMessage(new Error(message)));
-      setStatus('error');
+      setStatus("error");
     });
 
     const closeSub = SshClient.onClose(() => {
       if (!alive) return;
-      setStatus('disconnected');
+      setStatus("disconnected");
     });
 
-    setStatus('connecting');
+    setStatus("connecting");
     setError(null);
 
     const connectPromise = privateKeyPem
-      ? SshClient.connectWithKey(host, port, username, privateKeyPem, keyPassphrase)
+      ? SshClient.connectWithKey(
+          host,
+          port,
+          username,
+          privateKeyPem,
+          keyPassphrase,
+        )
       : SshClient.connect({ host, port, username, password });
 
     connectPromise
       .then(() => {
         if (!alive) return;
-        setStatus('connected');
+        setStatus("connected");
         SshClient.resize(colsRef.current, rowsRef.current).catch(() => {});
       })
       .catch((err: unknown) => {
         if (!alive) return;
         setError(extractMessage(err));
-        setStatus('error');
+        setStatus("error");
       });
 
     return () => {
@@ -109,7 +147,7 @@ export function useSshSession({
   useEffect(() => {
     colsRef.current = cols;
     rowsRef.current = rows;
-    if (status === 'connected') {
+    if (status === "connected") {
       SshClient.resize(cols, rows).catch(() => {});
     }
   }, [cols, rows, status]);
@@ -120,7 +158,7 @@ export function useSshSession({
 
   const disconnect = useCallback(() => {
     SshClient.disconnect().catch(() => {});
-    setStatus('disconnected');
+    setStatus("disconnected");
   }, []);
 
   return { status, error, write, disconnect };

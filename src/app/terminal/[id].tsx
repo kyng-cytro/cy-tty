@@ -81,16 +81,11 @@ function applyModifier(data: string, mod: "ctrl" | "alt"): string {
   return data;
 }
 
-function StatusOverlay() {
+function StatusOverlay({ onExit }: { onExit: () => void }) {
   const theme = useTheme();
-  const { status, error, disconnect } = useTerminalSessionContext();
+  const { status, error } = useTerminalSessionContext();
 
   if (status === "connected") return null;
-
-  const handleBack = () => {
-    disconnect();
-    router.back();
-  };
 
   return (
     <View
@@ -105,11 +100,7 @@ function StatusOverlay() {
           >
             Connecting…
           </Text>
-          <Button
-            mode="outlined"
-            onPress={handleBack}
-            style={styles.overlayBtn}
-          >
+          <Button mode="outlined" onPress={onExit} style={styles.overlayBtn}>
             Cancel
           </Button>
         </>
@@ -137,11 +128,7 @@ function StatusOverlay() {
           >
             {error ?? "An unknown error occurred"}
           </Text>
-          <Button
-            mode="outlined"
-            onPress={handleBack}
-            style={styles.overlayBtn}
-          >
+          <Button mode="outlined" onPress={onExit} style={styles.overlayBtn}>
             Back
           </Button>
         </>
@@ -160,11 +147,7 @@ function StatusOverlay() {
           >
             Session ended
           </Text>
-          <Button
-            mode="outlined"
-            onPress={handleBack}
-            style={styles.overlayBtn}
-          >
+          <Button mode="outlined" onPress={onExit} style={styles.overlayBtn}>
             Back
           </Button>
         </>
@@ -229,7 +212,7 @@ function FloatingHeader({ label, opacity }: FloatingHeaderProps) {
 export default function TerminalScreen() {
   const theme = useTheme();
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const { get } = useSessionManager();
+  const { get, destroy } = useSessionManager();
   const { setFontSize, fontSize, resolvedTheme } = useTerminalPreferences();
 
   const session = get(id ?? "");
@@ -267,6 +250,11 @@ export default function TerminalScreen() {
 
   const showKeyboard = useCallback(() => setKeyboardFocused(true), []);
   const hideKeyboard = useCallback(() => setKeyboardFocused(false), []);
+
+  const handleExit = useCallback(() => {
+    destroy(id ?? "");
+    router.back();
+  }, [destroy, id]);
 
   useEffect(() => {
     const t = setTimeout(() => setKeyboardFocused(true), 350);
@@ -334,6 +322,40 @@ export default function TerminalScreen() {
     };
   }, []);
 
+  const label = session
+    ? session.profile.username
+      ? `${session.profile.username}@${session.profile.host}`
+      : session.profile.host
+    : "";
+
+  const sessionCtx = useMemo<TerminalSessionContextValue>(
+    () => ({
+      write,
+      disconnect: session?.disconnect ?? (() => {}),
+      status: session?.status ?? "idle",
+      error: session?.error ?? null,
+      cols: session?.cols ?? 80,
+      rows: session?.rows ?? 24,
+      showKeyboard,
+      hideKeyboard,
+      modifier,
+      toggleModifier,
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      write,
+      session?.disconnect,
+      session?.status,
+      session?.error,
+      session?.cols,
+      session?.rows,
+      showKeyboard,
+      hideKeyboard,
+      modifier,
+      toggleModifier,
+    ],
+  );
+
   if (!session) {
     return (
       <SafeAreaView
@@ -346,38 +368,6 @@ export default function TerminalScreen() {
       </SafeAreaView>
     );
   }
-
-  const label = session.profile.username
-    ? `${session.profile.username}@${session.profile.host}`
-    : session.profile.host;
-
-  const sessionCtx = useMemo<TerminalSessionContextValue>(
-    () => ({
-      write,
-      disconnect: session.disconnect,
-      status: session.status,
-      error: session.error,
-      cols: session.cols,
-      rows: session.rows,
-      showKeyboard,
-      hideKeyboard,
-      modifier,
-      toggleModifier,
-    }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [
-      write,
-      session.disconnect,
-      session.status,
-      session.error,
-      session.cols,
-      session.rows,
-      showKeyboard,
-      hideKeyboard,
-      modifier,
-      toggleModifier,
-    ],
-  );
 
   return (
     <TerminalSessionContext.Provider value={sessionCtx}>
@@ -414,7 +404,7 @@ export default function TerminalScreen() {
           />
 
           <TerminalKeyboard />
-          <StatusOverlay />
+          <StatusOverlay onExit={handleExit} />
           <FloatingHeader label={label} opacity={headerOpacity} />
         </KeyboardAvoidingView>
       </SafeAreaView>
