@@ -36,7 +36,10 @@ import {
 } from "@/components/terminal/terminal-session";
 import { useSessionManager } from "@/core/sessions/session-manager";
 import { useTerminalPreferences } from "@/core/theme/preferences-context";
-import { CONTENT_PADDING_H, CONTENT_PADDING_TOP } from "@/hooks/use-terminal-size";
+import {
+  CONTENT_PADDING_H,
+  CONTENT_PADDING_TOP,
+} from "@/hooks/use-terminal-size";
 
 // Ctrl: a-z → \x01-\x1a; a handful of punctuation; arrow/tab escape sequences.
 // Alt: prepend ESC to any single char or remap arrow sequences.
