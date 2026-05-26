@@ -1,0 +1,16 @@
+{
+  "name": "expo-ssh",
+  "version": "1.0.0",
+  "description": "SSH transport native module for cy-tty",
+  "main": "src/index",
+  "types": "src/index",
+  "files": [
+    "src",
+    "ios",
+    "android",
+    "expo-module.config.json"
+  ],
+  "expo": {
+    "autolinking": {}
+  }
+}

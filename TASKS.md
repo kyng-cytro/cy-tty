@@ -15,13 +15,14 @@
 
 ## 📡 expo-ssh (SSH Transport)
 
-- [ ] Scaffold module: `bunx create-expo-module@latest --local modules/expo-ssh`
-- [ ] iOS: add NMSSH CocoaPod to `.podspec`
-- [ ] iOS: `ExpoSshModule.swift` — wrap `NMSSHSession` + `NMSSHChannel`
-- [ ] Android: compile libssh2 via NDK (`CMakeLists.txt`)
-- [ ] Android: `ExpoSshModule.kt` + `SshSession.kt`
-- [ ] JS types: `connect`, `disconnect`, `write`, `resize`, event types
-- [ ] Manual test: connect → get shell prompt → receive data
+- [x] Scaffold module: `modules/expo-ssh/` (created manually following template)
+- [x] iOS: `ExpoSsh.podspec` with NMSSH dependency
+- [x] iOS: `ExpoSshModule.swift` — NMSSHSession + NMSSHChannel + NMSSHChannelDelegate
+- [x] Android: `build.gradle` with JSch dependency
+- [x] Android: `ExpoSshModule.kt` — JSch SSH2, background read thread
+- [x] JS: `src/index.ts` SshClient API + `src/ExpoSshModule.types.ts`
+- [x] Autolinked via `expo-ssh: file:./modules/expo-ssh` in package.json
+- [ ] Manual test: connect → get shell prompt → receive data (requires native build)
 
 ---
 
