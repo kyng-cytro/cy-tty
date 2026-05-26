@@ -59,16 +59,7 @@ export default function ConnectScreen() {
     (profile: SshProfile) => {
       void touch(profile.id);
       const sessionId = create(profile);
-      router.push({
-        pathname: "/terminal/[id]",
-        params: {
-          id: sessionId,
-          host: profile.host,
-          port: String(profile.port),
-          username: profile.username,
-          password: profile.password ?? "",
-        },
-      });
+      router.push({ pathname: "/terminal/[id]", params: { id: sessionId } });
     },
     [create, touch],
   );
@@ -102,19 +93,9 @@ export default function ConnectScreen() {
 
   const handleResumeSession = useCallback(
     (sessionId: string) => {
-      const session = sessions.get(sessionId);
-      if (!session) return;
-      router.push({
-        pathname: "/terminal/[id]",
-        params: {
-          id: sessionId,
-          host: session.profile.host,
-          port: String(session.profile.port),
-          username: session.profile.username,
-        },
-      });
+      router.push({ pathname: "/terminal/[id]", params: { id: sessionId } });
     },
-    [sessions],
+    [],
   );
 
   return (

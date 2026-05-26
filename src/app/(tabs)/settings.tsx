@@ -15,7 +15,6 @@ import {
   Card,
   Divider,
   IconButton,
-  List,
   Text,
   useTheme,
 } from 'react-native-paper';
@@ -24,7 +23,6 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 
 import { KeyStore, type KeyMeta } from '@/core/keys/key-store';
-import { KnownHosts, type KnownHost } from '@/core/keys/known-hosts';
 import { useTerminalPreferences } from '@/core/theme/preferences-context';
 import { getCategories, getThemesByCategory } from '@/core/theme/color-themes';
 import type { TerminalTheme } from '@/core/theme/types';
@@ -92,18 +90,17 @@ function SshKeysSection() {
 
       <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
         {keys.length === 0 ? (
-          <List.Item
-            title="No keys imported"
-            description="Import an id_rsa or ed25519 key file"
-            style={styles.emptyListItem}
-            left={() => (
-              <MaterialCommunityIcons
-                name="key-outline" size={24} color={theme.colors.onSurfaceVariant} style={styles.listIcon}
-              />
-            )}
-            titleStyle={{ color: theme.colors.onSurfaceVariant }}
-            descriptionStyle={{ color: theme.colors.onSurfaceVariant, opacity: 0.7 }}
-          />
+          <View style={styles.itemRow}>
+            <MaterialCommunityIcons
+              name="key-outline" size={22} color={theme.colors.onSurfaceVariant} style={styles.listIcon}
+            />
+            <View style={styles.itemText}>
+              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>No keys imported</Text>
+              <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, opacity: 0.7 }}>
+                Import an id_rsa or ed25519 key file
+              </Text>
+            </View>
+          </View>
         ) : (
           keys.map((k, i) => (
             <View key={k.id}>
@@ -131,82 +128,6 @@ function SshKeysSection() {
   );
 }
 
-function KnownHostsSection() {
-  const theme = useTheme();
-  const [hosts, setHosts] = useState<KnownHost[]>([]);
-
-  const reload = useCallback(async () => {
-    setHosts(await KnownHosts.getAll());
-  }, []);
-
-  useEffect(() => { void reload(); }, [reload]);
-
-  const handleRemove = useCallback(
-    (h: KnownHost) => {
-      Alert.alert('Remove host', `Remove "${h.host}" from known hosts?`, [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            await KnownHosts.remove(h.host);
-            await reload();
-          },
-        },
-      ]);
-    },
-    [reload],
-  );
-
-  return (
-    <View style={styles.section}>
-      <Text
-        variant="titleSmall"
-        style={[styles.sectionTitle, styles.sectionRow, { color: theme.colors.onSurfaceVariant }]}
-      >
-        KNOWN HOSTS
-      </Text>
-
-      <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-        {hosts.length === 0 ? (
-          <List.Item
-            title="No hosts verified yet"
-            description="Verified fingerprints appear here after first connect"
-            style={styles.emptyListItem}
-            left={() => (
-              <MaterialCommunityIcons
-                name="shield-check-outline" size={24} color={theme.colors.onSurfaceVariant} style={styles.listIcon}
-              />
-            )}
-            titleStyle={{ color: theme.colors.onSurfaceVariant }}
-            descriptionStyle={{ color: theme.colors.onSurfaceVariant, opacity: 0.7 }}
-          />
-        ) : (
-          hosts.map((h, i) => (
-            <View key={h.host}>
-              <View style={styles.itemRow}>
-                <MaterialCommunityIcons
-                  name="shield-check" size={22} color={theme.colors.primary} style={styles.listIcon}
-                />
-                <View style={styles.itemText}>
-                  <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>{h.host}</Text>
-                  <Text variant="labelSmall" numberOfLines={1} style={{ color: theme.colors.onSurfaceVariant }}>
-                    {`${h.algorithm}  ·  ${h.fingerprint.slice(0, 32)}…`}
-                  </Text>
-                </View>
-                <IconButton
-                  icon="delete-outline" size={18} iconColor={theme.colors.error}
-                  onPress={() => handleRemove(h)} style={styles.itemAction}
-                />
-              </View>
-              {i < hosts.length - 1 && <Divider />}
-            </View>
-          ))
-        )}
-      </Card>
-    </View>
-  );
-}
 
 function ThemeSwatch({
   item,
@@ -259,7 +180,7 @@ function TerminalSection() {
 
   const categories = getCategories();
 
-  const [fontOpen, setFontOpen] = useState(false);
+  const [fontOpen, setFontOpen] = useState(true);
   const [themeOpen, setThemeOpen] = useState(false);
 
   const MIN_SIZE = 9;
@@ -486,7 +407,6 @@ export default function SettingsScreen() {
 
       <ScrollView contentContainerStyle={styles.scroll}>
         <SshKeysSection />
-        <KnownHostsSection />
         <TerminalSection />
       </ScrollView>
     </SafeAreaView>
@@ -523,10 +443,6 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginLeft: 4,
     marginRight: 0,
-  },
-  emptyListItem: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
   },
   itemRow: {
     flexDirection: 'row',

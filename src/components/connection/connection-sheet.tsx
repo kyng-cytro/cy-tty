@@ -144,7 +144,7 @@ export const ConnectionSheet = forwardRef<
     } finally {
       setImportingKey(false);
     }
-  }, [pemText]);
+  }, [pemText, loadKeys]);
 
   const handleSave = useCallback(async () => {
     const host = hostRef.current.trim();
