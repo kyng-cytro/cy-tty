@@ -27,6 +27,23 @@ export interface UseSshSessionResult {
   disconnect: () => void;
 }
 
+/**
+ * Strip Java class prefixes and stack-trace lines from native SSH errors
+ * so only the human-readable message is shown in the UI.
+ * e.g. "com.jcraft.jsch.JSchException: Auth fail\n\tat ..." → "Auth fail"
+ */
+function extractMessage(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err);
+  // Take only the first line (everything after the first \n is a stack frame)
+  const firstLine = raw.split('\n')[0].trim();
+  // Strip a leading Java-style class path:  "com.foo.SomeException: the message"
+  const colonIdx = firstLine.lastIndexOf(': ');
+  if (colonIdx !== -1 && firstLine.slice(0, colonIdx).includes('.')) {
+    return firstLine.slice(colonIdx + 2) || 'Connection failed';
+  }
+  return firstLine || 'Connection failed';
+}
+
 export function useSshSession({
   host,
   port = 22,
@@ -60,7 +77,7 @@ export function useSshSession({
 
     const errorSub = SshClient.onError(({ message }) => {
       if (!alive) return;
-      setError(message);
+      setError(extractMessage(new Error(message)));
       setStatus('error');
     });
 
@@ -84,8 +101,7 @@ export function useSshSession({
       })
       .catch((err: unknown) => {
         if (!alive) return;
-        const msg = err instanceof Error ? err.message : 'Connection failed';
-        setError(msg);
+        setError(extractMessage(err));
         setStatus('error');
       });
 
