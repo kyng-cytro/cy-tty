@@ -1,56 +1,140 @@
-# Welcome to your Expo app 👋
+# Cy TTY
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A mobile SSH terminal for Android (and eventually iOS) built with Expo. Connect to remote servers, manage multiple live sessions, and work from your phone with a proper terminal experience.
 
-## Get started
+> ⚠️ **Early / unstable** — core functionality works but the app is under active development. Expect rough edges, missing features, and breaking changes between commits. Not yet production-ready.
 
-1. Install dependencies
+---
 
-   ```bash
-   npm install
-   ```
+## Screenshots
 
-2. Start the app
+<!-- TODO: add screenshots -->
+| Connect | Terminal | Sessions | Settings |
+|---------|----------|----------|----------|
+| _soon_  | _soon_   | _soon_   | _soon_   |
 
-   ```bash
-   npx expo start
-   ```
+---
 
-In the output, you'll find options to open the app in a
+## Features
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+- **SSH connections** — password and public-key (RSA, Ed25519, ECDSA, OpenSSH format) authentication
+- **Multi-session** — open multiple SSH sessions simultaneously; each runs independently in the background
+- **Session persistence** — navigate away without disconnecting; resume any session from the Sessions tab
+- **Terminal emulator** — VT100/VT220/xterm-256color state machine with SGR colours, alternate screen, scroll regions, and UTF-8
+- **Skia renderer** — hardware-accelerated canvas via `@shopify/react-native-skia`; dirty-row diffing so only changed lines repaint
+- **Network scan** — auto-discovers SSH hosts on your local `/24` subnet with OS detection from SSH banners
+- **Encrypted storage** — profiles and private keys encrypted at rest using the OS keychain (`expo-secure-store`) and AES via `expo-crypto`
+- **SSH key management** — import PEM keys by file picker or paste; keys stored encrypted in the app's document directory
+- **Device lock** — mark individual connections as locked; biometric / device PIN required before a session opens
+- **Global search** — search across saved profiles, active sessions, and discovered hosts from any tab
+- **Terminal customisation** — font choice, font size (pinch-to-zoom), and colour theme picker
+- **Keyboard toolbar** — Ctrl, Alt, Tab, Esc, arrow keys, and Ctrl+C above the system keyboard
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+---
 
-## Get a fresh project
+## Tech Stack
 
-When you're ready, run:
+| Layer | Library |
+|-------|---------|
+| Framework | Expo 56 (prebuild — no Expo Go) |
+| SSH transport | `modules/expo-ssh` — JSch (Android) / NMSSH (iOS) |
+| VT parser | `modules/expo-ghostty-vt` — custom TypeScript state machine, shaped to swap in libghostty when its C API stabilises |
+| Renderer | `@shopify/react-native-skia` |
+| UI | `react-native-paper` (Material Design 3) |
+| Gestures | `react-native-gesture-handler` + `react-native-reanimated` |
+| Navigation | Expo Router (file-based) |
+| Storage | `expo-secure-store`, `expo-file-system`, `expo-crypto` |
+| Auth | `expo-local-authentication` |
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+
+- [Bun](https://bun.sh) (used as package manager — do not use npm/npx)
+- Android Studio + Android SDK (for Android builds)
+- Xcode 15+ (for iOS builds)
+
+### Install
 
 ```bash
-npm run reset-project
+git clone https://github.com/kyng-cytro/cy-tty.git
+cd cy-tty
+bun install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### Run on Android
 
-### Other setup steps
+```bash
+bunx expo run:android
+```
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+### Run on iOS
 
-## Learn more
+```bash
+bunx expo run:ios
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+> Expo Go is **not** supported — the app uses custom native modules and requires a full native build.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+---
 
-## Join the community
+## Project Structure
 
-Join our community of developers creating universal apps.
+```
+cy-tty/
+├── modules/
+│   ├── expo-ssh/              # SSH transport native module
+│   │   ├── android/           #   JSch (mwiede fork — OpenSSH key support)
+│   │   ├── ios/               #   NMSSH
+│   │   └── src/               #   TypeScript API + types
+│   └── expo-ghostty-vt/       # VT parser (pure TypeScript today, native later)
+│       └── src/               #   VTParser · Terminal · GhosttyVt namespace
+├── src/
+│   ├── app/
+│   │   ├── _layout.tsx        # Root: PaperProvider + SessionManagerProvider
+│   │   ├── (tabs)/
+│   │   │   ├── index.tsx      # Connect tab — network scan + profiles + FAB
+│   │   │   ├── sessions.tsx   # Active sessions list
+│   │   │   └── settings.tsx   # SSH keys + terminal preferences
+│   │   └── terminal/[id].tsx  # Full-screen terminal screen
+│   ├── components/
+│   │   ├── common/            # SwipeableRow
+│   │   ├── connection/        # ConnectionSheet · ProfileCard · DeviceCard
+│   │   ├── search/            # GlobalSearchSheet
+│   │   └── terminal/          # TerminalCanvas · TerminalKeyboard
+│   ├── core/
+│   │   ├── auth/              # requireDeviceAuth
+│   │   ├── keys/              # KeyStore (encrypted key files)
+│   │   ├── network/           # subnet scanner
+│   │   ├── profiles/          # SshProfile types + SecureStore CRUD
+│   │   ├── sessions/          # SessionManager context
+│   │   └── theme/             # colour themes · fonts · preferences
+│   └── hooks/                 # use-ssh-session · use-terminal · use-terminal-size · use-profiles · use-network-scan
+├── AGENTS.md                  # AI agent instructions
+├── PLAN.md                    # Architecture reference
+├── TASKS.md                   # Implementation checklist
+└── app.json
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+---
+
+## Contributing
+
+Contributions are welcome!
+
+1. Fork this repository
+2. Create a feature branch (`git checkout -b feature/my-feature`)
+3. Commit your changes (`git commit -m "Add new feature"`)
+4. Push to the branch (`git push origin feature/my-feature`)
+5. Open a Pull Request
+
+Please open an issue first if you'd like to discuss a major change.
+
+---
+
+## License
+
+MIT

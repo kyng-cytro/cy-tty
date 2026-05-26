@@ -1,136 +1,173 @@
-# cy-tty — Architecture Plan
+# cy-tty — Architecture Reference
 
-> Mobile SSH terminal emulator for **Android & iOS** (web out of scope).  
-> Stack: Expo prebuild · libssh2/NMSSH · libghostty-vt · react-native-skia · react-native-paper
+> Mobile SSH terminal for Android (and eventually iOS).  
+> Stack: Expo 56 prebuild · expo-ssh (JSch/NMSSH) · expo-ghostty-vt (VT parser) · react-native-skia · react-native-paper
 
 ---
 
-## Architecture
+## Data flow
 
 ```
 [SSH Server]
      │  TCP/SSH stream
      ▼
-[expo-ssh module]          ← NMSSH (iOS) | libssh2 via NDK (Android)
-     │  raw bytes
+[expo-ssh]                 Android: JSch (mwiede fork)
+     │                     iOS: NMSSH
+     │  onData(sessionId, bytes)  ← ISO-8859-1 string, binary-safe
      ▼
-[expo-ghostty-vt module]   ← libghostty-vt (Zig/C) via Swift Package (iOS) | JNI (Android)
-     │  TerminalDelta events
+[useSshSession]            filters events by sessionId
+     │  processBytes(data)
      ▼
-[useTerminal hook]         ← JS: TerminalGrid state (cells · cursor · colors)
+[expo-ghostty-vt]          pure TypeScript VT state machine today
+     │                     → native libghostty swap-in when C API stabilises
+     │  TerminalDelta (dirty rows + cursor)
+     ▼
+[useTerminal]              applies delta → TerminalState
      │  TerminalState
      ▼
-[TerminalCanvas]           ← @shopify/react-native-skia  (Rect fills + Glyphs API)
-     │
+[TerminalCanvas]           @shopify/react-native-skia
+     │                     Rect fills (bg) + Glyphs (text), dirty-row diffing
      ▼
-[react-native-paper UI]    ← Material You / MD3 theming
+[react-native-paper UI]    Material Design 3
 ```
 
 ---
 
-## Native Modules
+## Session lifecycle
+
+```
+User taps Connect
+  └─► SessionManager.create(profile)  →  sessionId
+        └─► SessionNode mounts (hidden, permanent until destroy)
+              ├─► SessionLoader: reads privateKeyPem from KeyStore if authMethod === 'key'
+              └─► SessionNodeInner: useSshSession + useTerminal + useTerminalSize
+  └─► router.push('/terminal/[id]', { id: sessionId })
+
+User taps ← Minimize
+  └─► router.back()  —  session stays alive in SessionManager
+
+User taps ✕ Disconnect
+  └─► SessionManager.destroy(sessionId)
+        └─► SessionNode unmounts  →  useSshSession cleanup calls SshClient.disconnect(sessionId)
+
+Sessions tab: lists sessions with status !== 'connecting' | 'idle'
+  Tap  →  router.push('/terminal/[id]', { id })
+  Swipe left  →  destroy(sessionId)
+```
+
+---
+
+## Native modules
 
 ### `modules/expo-ssh/`
 
-| Platform | Implementation |
-|----------|---------------|
-| iOS | NMSSH CocoaPod (Swift wrapper around libssh2) |
-| Android | libssh2 via Android NDK + JNI; fallback: `sshj` pure-Java |
+| Platform | Library | Notes |
+|----------|---------|-------|
+| Android | `com.github.mwiede:jsch:0.2.19` | Supports OpenSSH key format (ed25519, ECDSA, RSA new-format) |
+| iOS | NMSSH (CocoaPod) | libssh2 wrapper |
 
-**JS API**:
+**JS API** (all calls take `sessionId` as first arg):
 ```ts
-connect(host, port, user, password): Promise<void>
-disconnect(): Promise<void>
-write(data: string): Promise<void>
-resize(cols: number, rows: number): Promise<void>
-// events: onData · onError · onClose
+SshClient.connect(sessionId, { host, port, username, password })
+SshClient.connectWithKey(sessionId, host, port, username, privateKeyPem, passphrase)
+SshClient.disconnect(sessionId)
+SshClient.write(sessionId, data)
+SshClient.resize(sessionId, cols, rows)
+SshClient.onData(({ sessionId, data }) => …)
+SshClient.onError(({ sessionId, message }) => …)
+SshClient.onClose(({ sessionId }) => …)
 ```
+
+Android stores active sessions in a `ConcurrentHashMap<String, SshSessionState>`. Each session has its own JSch session, channel, and read thread. Events are tagged with `sessionId` so the JS side routes data correctly.
 
 ### `modules/expo-ghostty-vt/`
 
-| Platform | Implementation |
-|----------|---------------|
-| iOS | `libghostty-spm` Swift Package (prebuilt XCFramework — no Zig needed) |
-| Android | Zig cross-compile `libghostty-vt` C API → `arm64-v8a` + `x86_64` via Gradle exec task + JNI |
+Pure TypeScript implementation with an API shaped to match the planned native module:
 
-**JS API**:
 ```ts
-createTerminal(cols, rows): Promise<TerminalHandle>
-processBytes(handle, bytes): Promise<void>
-resize(handle, cols, rows): Promise<void>
-destroy(handle): Promise<void>
-// event: onTerminalDelta(handle, delta)
+GhosttyVt.createTerminal(cols, rows)  → TerminalHandle
+GhosttyVt.processBytes(handle, data)  → void  (fires onTerminalDelta)
+GhosttyVt.resize(handle, cols, rows)  → void
+GhosttyVt.destroy(handle)             → void
+GhosttyVt.onTerminalDelta(handle, cb) → Unsubscribe
 ```
 
-> **Android risk**: Zig→NDK cross-compile is non-trivial. Fallback: minimal JS ANSI parser until resolved.
+When libghostty's public C API stabilises and the XCFramework / Android NDK build pipeline is ready, only `src/index.ts` needs to change — all callers stay the same.
+
+**VT coverage:** Ground/Escape/CSI/OSC/SosPmApc states, C0 controls, SGR (8/256/RGB colours, bold/dim/italic/underline/blink/inverse), cursor movement & save/restore, scroll regions, alternate screen (1047/1049), DECSTBM, insert/delete lines & chars, UTF-8 multi-byte reassembly, OSC 0/2 (window title).
 
 ---
 
-## JS Layer
+## Storage
 
-| File | Role |
-|------|------|
-| `src/core/terminal/types.ts` | `TerminalCell`, `TerminalState`, `TerminalCursor` |
-| `src/core/terminal/grid.ts` | Grid manipulation utilities |
-| `src/hooks/use-terminal.ts` | Apply VT deltas → React state |
-| `src/hooks/use-ssh-session.ts` | SSH lifecycle (connect → shell → pipe → resize) |
-| `src/hooks/use-terminal-size.ts` | cols/rows from screen dimensions + font metrics |
-
----
-
-## Rendering — `src/components/terminal/terminal-canvas.tsx`
-
-Uses `@shopify/react-native-skia`:
-
-1. Load bundled monospace font (JetBrains Mono) via `useFonts`
-2. Measure glyph → `cellWidth × cellHeight`
-3. **Background pass** — batched `Rect` fills per color group
-4. **Glyph pass** — pre-computed glyph IDs, one draw call per row via `Glyphs` API
-5. **Cursor overlay** — blinking `Rect`/underline via `useSharedValue`
-6. **Dirty tracking** — diff rows, only repaint changed
+| What | Where | How |
+|------|-------|-----|
+| SSH profiles (minus password) | `expo-secure-store` key `CY_TTY_PROFILES` | JSON array |
+| Profile passwords | `expo-secure-store` key `cy_tty_pw_<id>` | Plain string, OS-encrypted |
+| SSH private keys (ciphertext) | `documentDirectory/cy-tty-keys/<id>.enc` | XOR-obfuscated with per-key random bytes |
+| Key encryption bytes | `expo-secure-store` key `cy_tty_keyenc_<id>` | 32 random bytes as hex |
+| Key metadata | `expo-secure-store` key `CY_TTY_KEY_META` | JSON array of `{ id, label, createdAt }` |
 
 ---
 
-## Screens
+## UI screens
 
-| Route | Screen |
-|-------|--------|
-| `/` | Connection form (host · port · user · password) |
-| `/terminal/[id]` | Full-screen `TerminalCanvas` + mobile keyboard toolbar |
-
-Root layout: `PaperProvider` with dynamic Material You theme.
+| Route | Screen | Notes |
+|-------|--------|-------|
+| `/(tabs)/` | Connect | Network scan · recent profiles · FAB · search |
+| `/(tabs)/sessions` | Sessions | Live sessions from SessionManager; `#id` suffix to disambiguate duplicates |
+| `/(tabs)/settings` | Settings | SSH keys · terminal font/size/theme |
+| `/terminal/[id]` | Terminal | Skia canvas · floating auto-hide header · keyboard toolbar |
 
 ---
 
-## File Tree
+## File map
 
 ```
-cy-tty/
-├── modules/
-│   ├── expo-ssh/
-│   └── expo-ghostty-vt/
-├── src/
-│   ├── app/
-│   │   ├── _layout.tsx
-│   │   ├── index.tsx
-│   │   └── terminal/[id].tsx
-│   ├── components/
-│   │   ├── terminal/{terminal-canvas, terminal-keyboard, terminal-session}.tsx
-│   │   └── connection/connection-form.tsx
-│   ├── core/terminal/{types, grid}.ts
-│   └── hooks/{use-ssh-session, use-terminal, use-terminal-size}.ts
-├── PLAN.md
-├── TASKS.md
-└── app.json
+src/
+├── app/
+│   ├── _layout.tsx               PaperProvider + SessionManagerProvider
+│   ├── (tabs)/
+│   │   ├── index.tsx             Connect tab
+│   │   ├── sessions.tsx          Active sessions
+│   │   └── settings.tsx          SSH keys + terminal prefs
+│   └── terminal/[id].tsx         Full-screen terminal
+├── components/
+│   ├── common/swipeable-row.tsx  Reusable swipe-to-action row
+│   ├── connection/
+│   │   ├── card-styles.ts        Shared emojiWrap/emoji/info styles
+│   │   ├── connection-sheet.tsx  New/edit connection bottom sheet
+│   │   ├── device-card.tsx       Scanned host card
+│   │   └── profile-card.tsx      Saved profile card
+│   ├── search/global-search-sheet.tsx
+│   └── terminal/
+│       ├── terminal-canvas.tsx   Skia renderer
+│       ├── terminal-keyboard.tsx Ctrl/Alt/arrow toolbar
+│       └── terminal-session.tsx  TerminalSessionContext + hook
+├── core/
+│   ├── auth/require-device-auth.ts   expo-local-authentication gate
+│   ├── keys/key-store.ts             Encrypted SSH key CRUD
+│   ├── network/scanner.ts            TCP port-22 subnet scan
+│   ├── profiles/
+│   │   ├── storage.ts                SecureStore profile CRUD
+│   │   └── types.ts                  SshProfile · AuthMethod
+│   ├── sessions/session-manager.tsx  Global session context
+│   └── theme/                        Colour themes · fonts · preferences
+└── hooks/
+    ├── use-network-scan.ts
+    ├── use-profiles.ts
+    ├── use-ssh-session.ts
+    ├── use-terminal.ts
+    └── use-terminal-size.ts
 ```
 
 ---
 
-## Future Work
+## Future work
 
-- Saved credentials (SecureStore)
-- Session tabs
-- Terminal config (font · colors · buffer size)
-- SSH key auth
+- iOS native expo-ssh testing and polish
+- libghostty native swap-in (blocked on stable C API + build pipeline)
+- Wide character (CJK) support in VT parser
 - SFTP file browser
-- mosh support
+- Mosh support
+- iCloud / backup-safe profile sync
