@@ -5,13 +5,12 @@ import { IconButton, useTheme } from "react-native-paper";
 import { useTerminalSessionContext } from "./terminal-session";
 
 const SEND_KEYS = [
-  { icon: "keyboard-tab",        label: "Tab",    data: "\t"      },
-  { icon: "keyboard-esc",        label: "Esc",    data: "\x1b"    },
-  { icon: "close-circle-outline", label: "Ctrl+C", data: "\x03"   },
-  { icon: "arrow-left",          label: "Left",   data: "\x1b[D"  },
-  { icon: "arrow-up",            label: "Up",     data: "\x1b[A"  },
-  { icon: "arrow-down",          label: "Down",   data: "\x1b[B"  },
-  { icon: "arrow-right",         label: "Right",  data: "\x1b[C"  },
+  { icon: "keyboard-tab", label: "Tab", data: "\t" },
+  { icon: "keyboard-esc", label: "Esc", data: "\x1b" },
+  { icon: "arrow-left", label: "Left", data: "\x1b[D" },
+  { icon: "arrow-up", label: "Up", data: "\x1b[A" },
+  { icon: "arrow-down", label: "Down", data: "\x1b[B" },
+  { icon: "arrow-right", label: "Right", data: "\x1b[C" },
 ] as const;
 
 export function TerminalKeyboard() {
@@ -60,6 +59,26 @@ export function TerminalKeyboard() {
       />
 
       <View style={[styles.sep, { backgroundColor: theme.colors.outline }]} />
+
+      <Pressable
+        style={[styles.modKey, disabled && styles.modKeyDisabled]}
+        onPress={() => write("\x03")}
+        disabled={disabled}
+        accessibilityLabel="Send Ctrl+C"
+      >
+        <Text
+          style={[
+            styles.modKeyText,
+            {
+              color: disabled
+                ? theme.colors.onSurfaceDisabled
+                : theme.colors.onSurface,
+            },
+          ]}
+        >
+          ctrl^c
+        </Text>
+      </Pressable>
 
       {(["ctrl", "alt"] as const).map((mod) => (
         <Pressable
@@ -134,6 +153,9 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     justifyContent: "center",
     alignItems: "center",
+  },
+  modKeyDisabled: {
+    opacity: 0.4,
   },
   modKeyText: {
     fontSize: 11,
