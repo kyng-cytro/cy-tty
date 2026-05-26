@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { Card, Text, useTheme } from "react-native-paper";
 
 import { SwipeableRow } from "@/components/common/swipeable-row";
+import { cardSharedStyles } from "@/components/connection/card-styles";
 import type { SshProfile } from "@/core/profiles/types";
 
 type OsEmoji = "🐧" | "🍎" | "🪟" | "💻";
@@ -82,11 +83,11 @@ export function ProfileCard({
           }}
           style={styles.pressable}
         >
-          <View style={styles.emojiWrap}>
-            <Text style={styles.emoji}>{emoji}</Text>
+          <View style={cardSharedStyles.emojiWrap}>
+            <Text style={cardSharedStyles.emoji}>{emoji}</Text>
           </View>
 
-          <View style={styles.info}>
+          <View style={cardSharedStyles.info}>
             <Text
               variant="titleSmall"
               numberOfLines={1}
@@ -137,15 +138,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 12,
     paddingVertical: 10,
-  },
-  emojiWrap: {
-    width: 40,
-    alignItems: "center",
-  },
-  emoji: { fontSize: 24 },
-  info: {
-    flex: 1,
-    gap: 1,
-    paddingHorizontal: 8,
   },
 });

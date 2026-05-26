@@ -7,26 +7,29 @@ import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import java.io.InputStream
 import java.io.OutputStream
+import java.util.concurrent.ConcurrentHashMap
+
+private data class SshSessionState(
+  var jschSession: JSchSession? = null,
+  var shellChannel: ChannelShell? = null,
+  var shellOutput: OutputStream? = null,
+  var readThread: Thread? = null,
+)
 
 class ExpoSshModule : Module() {
 
-  private var jschSession: JSchSession? = null
-  private var shellChannel: ChannelShell? = null
-  private var shellInput: InputStream? = null
-  private var shellOutput: OutputStream? = null
-  private var readThread: Thread? = null
+  private val sessions = ConcurrentHashMap<String, SshSessionState>()
 
   override fun definition() = ModuleDefinition {
     Name("ExpoSsh")
 
-    // ── Events ──────────────────────────────────────────────────────────────
     Events("onData", "onError", "onClose")
 
-    // ── connect ─────────────────────────────────────────────────────────────
-    // AsyncFunction runs on a background thread; blocking JSch calls are safe here.
-    AsyncFunction("connect") { host: String, port: Int, username: String, password: String ->
-      // Clean up any lingering connection first
-      teardown()
+    AsyncFunction("connect") { sessionId: String, host: String, port: Int,
+                               username: String, password: String ->
+      teardown(sessionId)
+      val state = SshSessionState()
+      sessions[sessionId] = state
 
       val jsch = JSch()
       val sess = jsch.getSession(username, host, port)
@@ -35,121 +38,97 @@ class ExpoSshModule : Module() {
       sess.setConfig("PreferredAuthentications", "password")
       sess.connect(15_000)
 
-      val ch = sess.openChannel("shell") as ChannelShell
-      ch.setPtyType("xterm-256color")
-      ch.setPtySize(80, 24, 0, 0)
-
-      // Capture streams BEFORE connect() so we don't miss early data
-      val inStream = ch.inputStream
-      val outStream = ch.outputStream
-
-      ch.connect(15_000)
-
-      jschSession = sess
-      shellChannel = ch
-      shellInput = inStream
-      shellOutput = outStream
-
-      startReading(inStream, ch)
+      openShell(sess, sessionId, state)
     }
 
-    // ── connectWithKey ──────────────────────────────────────────────────────
-    AsyncFunction("connectWithKey") { host: String, port: Int, username: String,
-                                      privateKeyPem: String, passphrase: String ->
-      teardown()
+    AsyncFunction("connectWithKey") { sessionId: String, host: String, port: Int,
+                                      username: String, privateKeyPem: String, passphrase: String ->
+      teardown(sessionId)
+      val state = SshSessionState()
+      sessions[sessionId] = state
 
       val jsch = JSch()
-      // JSch accepts PEM bytes directly as identity
       val keyBytes = privateKeyPem.toByteArray(Charsets.UTF_8)
       val phrase = passphrase.ifEmpty { null }?.toByteArray(Charsets.UTF_8)
-      jsch.addIdentity(
-        /* name       */ "cy-tty-key",
-        /* prvkey     */ keyBytes,
-        /* pubkey     */ null,
-        /* passphrase */ phrase,
-      )
+      jsch.addIdentity("cy-tty-key", keyBytes, null, phrase)
 
       val sess = jsch.getSession(username, host, port)
       sess.setConfig("StrictHostKeyChecking", "no")
       sess.setConfig("PreferredAuthentications", "publickey")
       sess.connect(15_000)
 
-      val ch = sess.openChannel("shell") as ChannelShell
-      ch.setPtyType("xterm-256color")
-      ch.setPtySize(80, 24, 0, 0)
-
-      val inStream = ch.inputStream
-      val outStream = ch.outputStream
-
-      ch.connect(15_000)
-
-      jschSession = sess
-      shellChannel = ch
-      shellInput = inStream
-      shellOutput = outStream
-
-      startReading(inStream, ch)
+      openShell(sess, sessionId, state)
     }
 
-    // ── disconnect ──────────────────────────────────────────────────────────
-    AsyncFunction("disconnect") {
-      teardown()
+    AsyncFunction("disconnect") { sessionId: String ->
+      teardown(sessionId)
     }
 
-    // ── write ───────────────────────────────────────────────────────────────
-    AsyncFunction("write") { data: String ->
-      val out = shellOutput ?: throw IllegalStateException("Not connected")
-      // ISO-8859-1 maps bytes 0-255 to chars 0-255 — binary-safe for terminal I/O
+    AsyncFunction("write") { sessionId: String, data: String ->
+      val out = sessions[sessionId]?.shellOutput
+        ?: throw IllegalStateException("Session not connected: $sessionId")
       out.write(data.toByteArray(Charsets.ISO_8859_1))
       out.flush()
     }
 
-    // ── resize ──────────────────────────────────────────────────────────────
-    AsyncFunction("resize") { cols: Int, rows: Int ->
-      shellChannel?.setPtySize(cols, rows, 0, 0)
+    AsyncFunction("resize") { sessionId: String, cols: Int, rows: Int ->
+      sessions[sessionId]?.shellChannel?.setPtySize(cols, rows, 0, 0)
     }
   }
 
   // ── Private helpers ────────────────────────────────────────────────────────
 
+  private fun openShell(sess: JSchSession, sessionId: String, state: SshSessionState) {
+    val ch = sess.openChannel("shell") as ChannelShell
+    ch.setPtyType("xterm-256color")
+    ch.setPtySize(80, 24, 0, 0)
+
+    // Capture streams BEFORE connect() so we don't miss early data
+    val inStream = ch.inputStream
+    val outStream = ch.outputStream
+
+    ch.connect(15_000)
+
+    state.jschSession = sess
+    state.shellChannel = ch
+    state.shellOutput = outStream
+
+    startReading(inStream, sessionId, state)
+  }
+
   /**
-   * Starts a daemon thread that reads SSH output and emits onData events.
-   * When the stream ends or an error occurs the thread emits onClose / onError.
+   * Reads SSH output on a daemon thread and emits onData events tagged with
+   * the session ID, so the JS side can route bytes to the correct VT instance.
    */
-  private fun startReading(inStream: InputStream, ch: ChannelShell) {
-    readThread = Thread {
+  private fun startReading(inStream: InputStream, sessionId: String, state: SshSessionState) {
+    val thread = Thread {
       val buf = ByteArray(8_192)
       try {
         while (!Thread.currentThread().isInterrupted) {
           val n = inStream.read(buf)
           if (n == -1) break
-          // Emit data as ISO-8859-1 string to preserve raw bytes across the bridge
           val data = String(buf, 0, n, Charsets.ISO_8859_1)
-          sendEvent("onData", mapOf("data" to data))
+          sendEvent("onData", mapOf("sessionId" to sessionId, "data" to data))
         }
       } catch (e: Exception) {
         if (!Thread.currentThread().isInterrupted) {
-          sendEvent("onError", mapOf("message" to (e.message ?: "Read error")))
+          sendEvent("onError", mapOf("sessionId" to sessionId, "message" to (e.message ?: "Read error")))
         }
       } finally {
-        sendEvent("onClose", emptyMap<String, Any>())
+        sessions.remove(sessionId)
+        sendEvent("onClose", mapOf("sessionId" to sessionId))
       }
-    }.also {
-      it.isDaemon = true
-      it.name = "expo-ssh-read"
-      it.start()
     }
+    thread.isDaemon = true
+    thread.name = "expo-ssh-read-$sessionId"
+    thread.start()
+    state.readThread = thread
   }
 
-  /** Closes channel, session, and interrupts the read thread. */
-  private fun teardown() {
-    readThread?.interrupt()
-    readThread = null
-    try { shellChannel?.disconnect() } catch (_: Exception) {}
-    try { jschSession?.disconnect() } catch (_: Exception) {}
-    shellChannel = null
-    jschSession = null
-    shellInput = null
-    shellOutput = null
+  private fun teardown(sessionId: String) {
+    val state = sessions.remove(sessionId) ?: return
+    state.readThread?.interrupt()
+    try { state.shellChannel?.disconnect() } catch (_: Exception) {}
+    try { state.jschSession?.disconnect() } catch (_: Exception) {}
   }
 }

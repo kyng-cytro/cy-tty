@@ -1,5 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 import { Card, IconButton, Text, useTheme } from 'react-native-paper';
+import { cardSharedStyles } from '@/components/connection/card-styles';
 import type { DiscoveredHost, GuessedOs } from '@/core/network/scanner';
 
 const OS_EMOJI: Record<GuessedOs, string> = {
@@ -32,11 +33,11 @@ export function DeviceCard({ host, onConnect }: DeviceCardProps) {
       style={[styles.card, { backgroundColor: theme.colors.surface }]}
       contentStyle={styles.cardContent}
     >
-      <View style={styles.emojiWrap}>
-        <Text style={styles.emoji}>{emoji}</Text>
+      <View style={cardSharedStyles.emojiWrap}>
+        <Text style={cardSharedStyles.emoji}>{emoji}</Text>
       </View>
 
-      <View style={styles.info}>
+      <View style={cardSharedStyles.info}>
         <Text
           variant="titleSmall"
           numberOfLines={1}
@@ -84,18 +85,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 10,
-  },
-  emojiWrap: {
-    width: 40,
-    alignItems: 'center',
-  },
-  emoji: {
-    fontSize: 24,
-  },
-  info: {
-    flex: 1,
-    gap: 1,
-    paddingHorizontal: 8,
   },
   connectBtn: {
     margin: 0,

@@ -87,6 +87,7 @@ function SessionNodeInner({
   const { state, processBytes } = useTerminal({ cols, rows });
 
   const { status, error, write, disconnect } = useSshSession({
+    sessionId: id,
     host: profile.host,
     port: profile.port,
     username: profile.username,
