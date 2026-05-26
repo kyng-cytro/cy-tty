@@ -29,14 +29,20 @@ export interface UseSshSessionResult {
 }
 
 const FRIENDLY_ERRORS: [RegExp, string][] = [
-  [/auth\s*fail/i,            "Authentication failed — wrong username or password"],
-  [/connection\s*refused/i,   "Connection refused — check the host address and port"],
-  [/no\s*route\s*to\s*host/i, "No route to host — check your network connection"],
-  [/network.*unreachable/i,   "Network unreachable"],
-  [/unknown\s*host/i,         "Host not found — check the hostname or IP address"],
-  [/timeout/i,                "Connection timed out"],
-  [/too\s*many\s*auth/i,      "Too many failed authentication attempts"],
-  [/permission\s*denied/i,    "Permission denied"],
+  [/auth\s*fail/i, "Authentication failed — wrong username or password"],
+  [
+    /connection\s*refused/i,
+    "Connection refused — check the host address and port",
+  ],
+  [
+    /no\s*route\s*to\s*host/i,
+    "No route to host — check your network connection",
+  ],
+  [/network.*unreachable/i, "Network unreachable"],
+  [/unknown\s*host/i, "Host not found — check the hostname or IP address"],
+  [/timeout/i, "Connection timed out"],
+  [/too\s*many\s*auth/i, "Too many failed authentication attempts"],
+  [/permission\s*denied/i, "Permission denied"],
 ];
 
 function extractMessage(err: unknown): string {
@@ -71,7 +77,9 @@ export function useSshSession({
   const [error, setError] = useState<string | null>(null);
 
   const onDataRef = useRef(onData);
-  useEffect(() => { onDataRef.current = onData; }, [onData]);
+  useEffect(() => {
+    onDataRef.current = onData;
+  }, [onData]);
 
   const colsRef = useRef(cols);
   const rowsRef = useRef(rows);
@@ -98,14 +106,23 @@ export function useSshSession({
     setError(null);
 
     const connectPromise = privateKeyPem
-      ? SshClient.connectWithKey(sessionId, host, port, username, privateKeyPem, keyPassphrase)
+      ? SshClient.connectWithKey(
+          sessionId,
+          host,
+          port,
+          username,
+          privateKeyPem,
+          keyPassphrase,
+        )
       : SshClient.connect(sessionId, { host, port, username, password });
 
     connectPromise
       .then(() => {
         if (!alive) return;
         setStatus("connected");
-        SshClient.resize(sessionId, colsRef.current, rowsRef.current).catch(() => {});
+        SshClient.resize(sessionId, colsRef.current, rowsRef.current).catch(
+          () => {},
+        );
       })
       .catch((err: unknown) => {
         if (!alive) return;
@@ -131,9 +148,12 @@ export function useSshSession({
     }
   }, [cols, rows, status, sessionId]);
 
-  const write = useCallback((data: string) => {
-    SshClient.write(sessionId, data).catch(() => {});
-  }, [sessionId]);
+  const write = useCallback(
+    (data: string) => {
+      SshClient.write(sessionId, data).catch(() => {});
+    },
+    [sessionId],
+  );
 
   const disconnect = useCallback(() => {
     SshClient.disconnect(sessionId).catch(() => {});
