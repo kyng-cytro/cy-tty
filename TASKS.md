@@ -52,12 +52,13 @@
 
 ## 🎨 Terminal Rendering
 
-- [ ] Bundle JetBrains Mono (or Fira Code) in `assets/fonts/`
-- [ ] `TerminalCanvas`: load font via `useFonts`, measure cell size
-- [ ] `TerminalCanvas`: background pass — batch `Rect` fills by color
-- [ ] `TerminalCanvas`: glyph pass — `Glyphs` API per row
-- [ ] `TerminalCanvas`: cursor overlay — blinking via `useSharedValue`
-- [ ] `TerminalCanvas`: dirty row tracking — only repaint changed rows
+- [x] Bundle JetBrains Mono Regular + Bold in `assets/fonts/`
+- [x] `src/core/terminal/colors.ts` — argbToHex, DEFAULT_FG/BG_RGB/HEX
+- [x] `src/components/terminal/terminal-row.tsx` — memo'd row: bg Rects + Glyphs batched by fg colour
+- [x] `src/components/terminal/terminal-canvas.tsx` — Canvas: bg fill, grid rows, cursor overlay
+- [x] Cell size measured from font metrics → reported via `onCellSize` callback
+- [x] Cursor blink via Reanimated `useSharedValue` + `withRepeat/withSequence`
+- [x] Dirty row optimisation: React.memo + applyDelta stable references
 
 ---
 
