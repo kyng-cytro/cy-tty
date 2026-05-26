@@ -1,0 +1,11 @@
+{
+  "name": "expo-ghostty-vt",
+  "version": "1.0.0",
+  "description": "VT/ANSI terminal state machine for cy-tty — JS now, libghostty-vt native later",
+  "main": "src/index",
+  "types": "src/index",
+  "files": [
+    "src",
+    "expo-module.config.json"
+  ]
+}

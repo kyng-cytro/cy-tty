@@ -28,13 +28,16 @@
 
 ## 🖥️ expo-ghostty-vt (VT Parser)
 
-- [ ] Scaffold module: `bunx create-expo-module@latest --local modules/expo-ghostty-vt`
-- [ ] iOS: add `libghostty-spm` Swift Package (XCFramework)
-- [ ] iOS: `ExpoGhosttyVtModule.swift` — wrap terminal lifecycle + delta events
-- [ ] Android: Zig cross-compile `libghostty-vt` to `arm64-v8a` + `x86_64`
-- [ ] Android: JNI bridge + `ExpoGhosttyVtModule.kt`
-- [ ] JS types: `TerminalHandle`, `TerminalDelta`
-- [ ] Manual test: feed ANSI sequences → verify correct delta output
+- [x] Scaffold module: `modules/expo-ghostty-vt/` (pure TypeScript — no native yet)
+- [x] `src/types.ts` — TerminalCell, TerminalCursor, TerminalState, TerminalDelta, CellColor variants
+- [x] `src/parser.ts` — Paul Williams DEC-compatible VT state machine (Ground/Escape/CSI/OSC/SosPmApc)
+- [x] `src/terminal.ts` — Terminal grid: print, C0 control, CSI (cursor/erase/SGR/modes/scroll), alternate screen
+- [x] `src/index.ts` — GhosttyVt public API: createTerminal / processBytes / resize / destroy / onTerminalDelta
+- [x] Autolinked via `expo-ghostty-vt: file:./modules/expo-ghostty-vt` in package.json
+- [x] Full TypeScript type-check passes (tsc --noEmit)
+- [ ] iOS native: libghostty-spm XCFramework — deferred (API not yet stable, spm not public)
+- [ ] Android native: Zig → NDK cross-compile — deferred (same reason)
+- [ ] Manual test: SSH session → ANSI output renders correctly (requires full pipeline)
 
 ---
 

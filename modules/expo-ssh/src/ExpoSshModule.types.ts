@@ -27,6 +27,9 @@ export interface SshErrorEvent {
 // ── Event map (used by NativeModule generic) ──────────────────────────────
 
 export interface SshModuleEvents {
+  // Index signature required by Expo's EventsMap constraint
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [key: string]: (...args: any[]) => void;
   onData: (event: SshDataEvent) => void;
   onError: (event: SshErrorEvent) => void;
   onClose: () => void;
