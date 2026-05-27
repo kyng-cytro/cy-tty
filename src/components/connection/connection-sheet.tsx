@@ -1,12 +1,22 @@
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
-import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Keyboard, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import {
+  BottomSheetBackdrop,
   BottomSheetModal,
   BottomSheetView,
-  BottomSheetBackdrop,
   type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
+import * as Crypto from "expo-crypto";
+import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system/legacy";
+import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
+import {
+  Alert,
+  Keyboard,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
 import {
   Button,
   HelperText,
@@ -16,12 +26,9 @@ import {
   TextInput,
   useTheme,
 } from "react-native-paper";
-import * as DocumentPicker from "expo-document-picker";
-import * as FileSystem from "expo-file-system/legacy";
-import * as Crypto from "expo-crypto";
 
 import { KeyStore, type KeyMeta } from "@/core/keys/key-store";
-import type { SshProfile, AuthMethod } from "@/core/profiles/types";
+import type { AuthMethod, SshProfile } from "@/core/profiles/types";
 
 export interface ConnectionSheetProps {
   onSave: (profile: SshProfile) => void;
@@ -42,14 +49,18 @@ function validate(
   if (!port.trim() || !Number.isInteger(n) || n < 1 || n > 65535) {
     errors.port = "Port must be 1–65535";
   }
-  if (authMethod === "key" && !selectedKeyId) errors.key = "Select or import an SSH key";
+  if (authMethod === "key" && !selectedKeyId)
+    errors.key = "Select or import an SSH key";
   return errors;
 }
 
 export const ConnectionSheet = forwardRef<
   BottomSheetModal,
   ConnectionSheetProps
->(function ConnectionSheet({ onSave, initialHost = "", editProfile, onOpenChange }, ref) {
+>(function ConnectionSheet(
+  { onSave, initialHost = "", editProfile, onOpenChange },
+  ref,
+) {
   const theme = useTheme();
 
   const labelRef = useRef(editProfile?.label ?? "");
@@ -67,8 +78,8 @@ export const ConnectionSheet = forwardRef<
   const [selectedKeyId, setSelectedKeyId] = useState<string | null>(
     editProfile?.privateKeyId ?? null,
   );
-  const [showPasteArea, setShowPasteArea] = useState(false);
   const [pemText, setPemText] = useState("");
+  const [showPasteArea, setShowPasteArea] = useState(false);
   const [importingKey, setImportingKey] = useState(false);
   const [locked, setLocked] = useState(editProfile?.locked ?? false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -103,12 +114,9 @@ export const ConnectionSheet = forwardRef<
     if (authMethod === "key") void loadKeys();
   }, [authMethod, loadKeys]);
 
-  const handleAuthMethodChange = useCallback(
-    (method: AuthMethod) => {
-      setAuthMethod(method);
-    },
-    [],
-  );
+  const handleAuthMethodChange = useCallback((method: AuthMethod) => {
+    setAuthMethod(method);
+  }, []);
 
   const handlePickFile = useCallback(async () => {
     const result = await DocumentPicker.getDocumentAsync({
@@ -119,7 +127,8 @@ export const ConnectionSheet = forwardRef<
     try {
       let uri = result.assets[0].uri;
       if (!uri.startsWith("file://")) {
-        const dest = (FileSystem.cacheDirectory ?? "") + `picked_key_${Date.now()}.pem`;
+        const dest =
+          (FileSystem.cacheDirectory ?? "") + `picked_key_${Date.now()}.pem`;
         await FileSystem.copyAsync({ from: uri, to: dest });
         uri = dest;
       }
@@ -173,11 +182,11 @@ export const ConnectionSheet = forwardRef<
       ...(authMethod === "password"
         ? { password }
         : authMethod === "key"
-        ? {
-            privateKeyId: selectedKeyId!,
-            ...(keyPassphrase ? { keyPassphrase } : {}),
-          }
-        : {}),
+          ? {
+              privateKeyId: selectedKeyId!,
+              ...(keyPassphrase ? { keyPassphrase } : {}),
+            }
+          : {}),
       locked,
       createdAt: editProfile?.createdAt ?? Date.now(),
       lastConnected: editProfile?.lastConnected,
@@ -296,8 +305,8 @@ export const ConnectionSheet = forwardRef<
             onValueChange={(v) => handleAuthMethodChange(v as AuthMethod)}
             style={styles.segmented}
             buttons={[
-              { value: "none",     label: "None",     icon: "minus-circle-outline" },
-              { value: "key",      label: "SSH Key",  icon: "key" },
+              { value: "none", label: "None", icon: "minus-circle-outline" },
+              { value: "key", label: "SSH Key", icon: "key" },
               { value: "password", label: "Password", icon: "lock" },
             ]}
           />
@@ -328,7 +337,10 @@ export const ConnectionSheet = forwardRef<
                 <>
                   <Text
                     variant="labelSmall"
-                    style={{ color: theme.colors.onSurfaceVariant, marginBottom: 4 }}
+                    style={{
+                      color: theme.colors.onSurfaceVariant,
+                      marginBottom: 4,
+                    }}
                   >
                     Saved keys
                   </Text>
@@ -354,13 +366,19 @@ export const ConnectionSheet = forwardRef<
                         <MaterialCommunityIcons
                           name="key-variant"
                           size={18}
-                          color={selected ? theme.colors.primary : theme.colors.onSurfaceVariant}
+                          color={
+                            selected
+                              ? theme.colors.primary
+                              : theme.colors.onSurfaceVariant
+                          }
                         />
                         <Text
                           variant="bodyMedium"
                           style={{
                             flex: 1,
-                            color: selected ? theme.colors.onPrimaryContainer : theme.colors.onSurfaceVariant,
+                            color: selected
+                              ? theme.colors.onPrimaryContainer
+                              : theme.colors.onSurfaceVariant,
                           }}
                           numberOfLines={1}
                         >
@@ -432,7 +450,9 @@ export const ConnectionSheet = forwardRef<
               <TextInput
                 label="Key passphrase (optional)"
                 defaultValue={passphraseRef.current}
-                onChangeText={(t) => { passphraseRef.current = t; }}
+                onChangeText={(t) => {
+                  passphraseRef.current = t;
+                }}
                 mode="outlined"
                 secureTextEntry
                 style={styles.input}
@@ -448,13 +468,21 @@ export const ConnectionSheet = forwardRef<
             <MaterialCommunityIcons
               name={locked ? "lock" : "lock-open-outline"}
               size={20}
-              color={locked ? theme.colors.primary : theme.colors.onSurfaceVariant}
+              color={
+                locked ? theme.colors.primary : theme.colors.onSurfaceVariant
+              }
             />
             <View style={styles.lockText}>
-              <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>
+              <Text
+                variant="bodyMedium"
+                style={{ color: theme.colors.onSurface }}
+              >
                 Require device unlock
               </Text>
-              <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+              <Text
+                variant="labelSmall"
+                style={{ color: theme.colors.onSurfaceVariant }}
+              >
                 {locked
                   ? "Fingerprint or PIN required before connecting"
                   : "Anyone can connect with this profile"}
