@@ -1,6 +1,7 @@
 import { EventEmitter, NativeModule, requireNativeModule } from 'expo';
 
 import type {
+  SshAuthChallengeEvent,
   SshCloseEvent,
   SshConnectOptions,
   SshDataEvent,
@@ -51,6 +52,10 @@ export const SshClient = {
   onClose(listener: (event: SshCloseEvent) => void) {
     return emitter.addListener('onClose', listener);
   },
+
+  onAuthChallenge(listener: (event: SshAuthChallengeEvent) => void) {
+    return emitter.addListener('onAuthChallenge', listener);
+  },
 } as const;
 
-export type { SshCloseEvent, SshConnectOptions, SshDataEvent, SshErrorEvent, SshModuleEvents };
+export type { SshAuthChallengeEvent, SshCloseEvent, SshConnectOptions, SshDataEvent, SshErrorEvent, SshModuleEvents };

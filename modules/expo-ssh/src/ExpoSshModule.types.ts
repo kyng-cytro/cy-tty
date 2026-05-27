@@ -19,10 +19,16 @@ export interface SshCloseEvent {
   sessionId: string;
 }
 
+export interface SshAuthChallengeEvent {
+  sessionId: string;
+  url: string;
+}
+
 export interface SshModuleEvents {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: (...args: any[]) => void;
-  onData:  (event: SshDataEvent)  => void;
-  onError: (event: SshErrorEvent) => void;
-  onClose: (event: SshCloseEvent) => void;
+  onData:          (event: SshDataEvent)          => void;
+  onError:         (event: SshErrorEvent)         => void;
+  onClose:         (event: SshCloseEvent)         => void;
+  onAuthChallenge: (event: SshAuthChallengeEvent) => void;
 }

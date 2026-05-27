@@ -15,10 +15,10 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ConnectionSheet } from "@/components/connection/connection-sheet";
-import { requireDeviceAuth } from "@/core/auth/require-device-auth";
 import { DeviceCard } from "@/components/connection/device-card";
 import { ProfileCard } from "@/components/connection/profile-card";
 import { GlobalSearchSheet } from "@/components/search/global-search-sheet";
+import { requireDeviceAuth } from "@/core/auth/require-device-auth";
 
 import type { DiscoveredHost } from "@/core/network/scanner";
 import type { SshProfile } from "@/core/profiles/types";
@@ -59,7 +59,9 @@ export default function ConnectScreen() {
   const launchSession = useCallback(
     async (profile: SshProfile) => {
       if (profile.locked) {
-        const ok = await requireDeviceAuth(`Unlock to connect to ${profile.label}`);
+        const ok = await requireDeviceAuth(
+          `Unlock to connect to ${profile.label}`,
+        );
         if (!ok) return;
       }
       void touch(profile.id);
@@ -96,12 +98,9 @@ export default function ConnectScreen() {
     [remove],
   );
 
-  const handleResumeSession = useCallback(
-    (sessionId: string) => {
-      router.push({ pathname: "/terminal/[id]", params: { id: sessionId } });
-    },
-    [],
-  );
+  const handleResumeSession = useCallback((sessionId: string) => {
+    router.push({ pathname: "/terminal/[id]", params: { id: sessionId } });
+  }, []);
 
   return (
     <BottomSheetModalProvider>

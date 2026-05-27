@@ -4,12 +4,12 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { Badge, Card, Text, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { SwipeableRow } from "@/components/common/swipeable-row";
+import { requireDeviceAuth } from "@/core/auth/require-device-auth";
 import {
   useSessionManager,
   type LiveSession,
 } from "@/core/sessions/session-manager";
-import { SwipeableRow } from "@/components/common/swipeable-row";
-import { requireDeviceAuth } from "@/core/auth/require-device-auth";
 import type { SshSessionStatus } from "@/hooks/use-ssh-session";
 
 function useStatusColors(): Record<SshSessionStatus, string> {
@@ -44,7 +44,9 @@ function SessionRow({ session }: { session: LiveSession }) {
 
   const handlePress = async () => {
     if (session.profile.locked) {
-      const ok = await requireDeviceAuth(`Unlock to connect to ${session.profile.label}`);
+      const ok = await requireDeviceAuth(
+        `Unlock to connect to ${session.profile.label}`,
+      );
       if (!ok) return;
     }
     if (canReconnect) {
@@ -67,28 +69,51 @@ function SessionRow({ session }: { session: LiveSession }) {
       <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
         <Pressable
           onPress={handlePress}
-          android_ripple={{ color: theme.colors.primary + "22", borderless: false }}
+          android_ripple={{
+            color: theme.colors.primary + "22",
+            borderless: false,
+          }}
           style={styles.pressable}
         >
           <View style={[styles.dot, { backgroundColor: dotColor }]} />
 
           <View style={styles.info}>
             <View style={styles.labelRow}>
-              <Text variant="titleSmall" numberOfLines={1} style={[styles.labelText, { color: theme.colors.onSurface }]}>
+              <Text
+                variant="titleSmall"
+                numberOfLines={1}
+                style={[styles.labelText, { color: theme.colors.onSurface }]}
+              >
                 {session.profile.label}
               </Text>
-              <Text variant="labelSmall" style={[styles.sessionTag, { color: theme.colors.onSurfaceVariant }]}>
+              <Text
+                variant="labelSmall"
+                style={[
+                  styles.sessionTag,
+                  { color: theme.colors.onSurfaceVariant },
+                ]}
+              >
                 #{session.id.slice(-4)}
               </Text>
             </View>
-            <Text variant="bodySmall" numberOfLines={1} style={{ color: theme.colors.onSurfaceVariant }}>
+            <Text
+              variant="bodySmall"
+              numberOfLines={1}
+              style={{ color: theme.colors.onSurfaceVariant }}
+            >
               {session.profile.username ? `${session.profile.username}@` : ""}
               {session.profile.host}:{session.profile.port}
             </Text>
-            <Text variant="labelSmall" style={{ color: dotColor, opacity: 0.9 }}>
+            <Text
+              variant="labelSmall"
+              style={{ color: dotColor, opacity: 0.9 }}
+            >
               {STATUS_LABEL[session.status]}
-              {session.status === "connected" && `  ·  ${session.cols}×${session.rows}`}
-              {session.status === "error" && session.error ? `  —  ${session.error}` : ""}
+              {session.status === "connected" &&
+                `  ·  ${session.cols}×${session.rows}`}
+              {session.status === "error" && session.error
+                ? `  —  ${session.error}`
+                : ""}
             </Text>
           </View>
 
@@ -116,8 +141,13 @@ export default function SessionsScreen() {
       edges={["top", "left", "right"]}
       style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
-      <View style={[styles.header, { borderBottomColor: theme.colors.outline }]}>
-        <Text variant="headlineMedium" style={[styles.title, { color: theme.colors.onSurface }]}>
+      <View
+        style={[styles.header, { borderBottomColor: theme.colors.outline }]}
+      >
+        <Text
+          variant="headlineMedium"
+          style={[styles.title, { color: theme.colors.onSurface }]}
+        >
           Sessions
         </Text>
         {sessionList.length > 0 && (
@@ -129,8 +159,15 @@ export default function SessionsScreen() {
 
       {sessionList.length === 0 ? (
         <View style={styles.empty}>
-          <MaterialCommunityIcons name="console-line" size={64} color={theme.colors.onSurfaceVariant} />
-          <Text variant="titleMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 16 }}>
+          <MaterialCommunityIcons
+            name="console-line"
+            size={64}
+            color={theme.colors.onSurfaceVariant}
+          />
+          <Text
+            variant="titleMedium"
+            style={{ color: theme.colors.onSurfaceVariant, marginTop: 16 }}
+          >
             No active sessions
           </Text>
           <Text

@@ -12,6 +12,9 @@ export interface TerminalSessionContextValue {
   hideKeyboard: () => void;
   modifier: 'ctrl' | 'alt' | null;
   toggleModifier: (mod: 'ctrl' | 'alt') => void;
+  pendingAuthUrl: string | null;
+  approveAuth: () => void;
+  denyAuth: () => void;
 }
 
 export const TerminalSessionContext = createContext<TerminalSessionContextValue | null>(null);
