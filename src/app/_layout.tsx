@@ -26,26 +26,26 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <SshUrlSettingsProvider>
-      <SessionManagerProvider>
-        <TerminalPreferencesProvider>
-          <PaperProvider theme={theme}>
-            <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
-            <Stack
-              screenOptions={{
-                contentStyle: { backgroundColor: theme.colors.background },
-                headerStyle: { backgroundColor: theme.colors.surface },
-                headerTintColor: theme.colors.onSurface,
-              }}
-            >
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen
-                name="terminal/[id]"
-                options={{ headerShown: false, animation: "slide_from_bottom" }}
-              />
-            </Stack>
-          </PaperProvider>
-        </TerminalPreferencesProvider>
-      </SessionManagerProvider>
+        <SessionManagerProvider>
+          <TerminalPreferencesProvider>
+            <PaperProvider theme={theme}>
+              <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
+              <Stack
+                screenOptions={{
+                  contentStyle: { backgroundColor: theme.colors.background },
+                  headerStyle: { backgroundColor: theme.colors.surface },
+                  headerTintColor: theme.colors.onSurface,
+                }}
+              >
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen
+                  name="terminal/[id]"
+                  options={{ headerShown: false, animation: "slide_from_bottom" }}
+                />
+              </Stack>
+            </PaperProvider>
+          </TerminalPreferencesProvider>
+        </SessionManagerProvider>
       </SshUrlSettingsProvider>
     </GestureHandlerRootView>
   );

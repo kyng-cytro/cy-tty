@@ -3,16 +3,46 @@ package expo.modules.ssh
 import com.jcraft.jsch.ChannelShell
 import com.jcraft.jsch.JSch
 import com.jcraft.jsch.Session as JSchSession
+import com.jcraft.jsch.SocketFactory
 import com.jcraft.jsch.UIKeyboardInteractive
 import com.jcraft.jsch.UserInfo
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
+import java.net.InetSocketAddress
+import java.net.Socket
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+// JSch Session.disconnect() is a no-op before auth completes; closing the raw socket is the only way to unblock it.
+private class AbortableSocketFactory : SocketFactory {
+  @Volatile private var socket: Socket? = null
+  @Volatile private var aborted = false
+
+  override fun createSocket(host: String, port: Int): Socket {
+    if (aborted) throw IOException("Connection aborted")
+    val s = Socket()
+    socket = s
+    if (aborted) { s.close(); throw IOException("Connection aborted") }
+    s.connect(InetSocketAddress(host, port), 30_000)
+    return s
+  }
+
+  override fun getInputStream(socket: Socket): InputStream = socket.inputStream
+  override fun getOutputStream(socket: Socket): OutputStream = socket.outputStream
+
+  fun abort() {
+    aborted = true
+    try { socket?.close() } catch (_: Exception) {}
+  }
+}
 
 private data class SshSessionState(
   var jschSession: JSchSession? = null,
+  var socketFactory: AbortableSocketFactory? = null,
   var shellChannel: ChannelShell? = null,
   var shellOutput: OutputStream? = null,
   var readThread: Thread? = null,
@@ -27,35 +57,44 @@ class ExpoSshModule : Module() {
 
     Events("onData", "onError", "onClose", "onAuthChallenge")
 
-    AsyncFunction("connect") { sessionId: String, host: String, port: Int,
-                               username: String, password: String ->
+    // SuspendBody + withContext(IO) frees the single modules-queue thread so disconnect() can run concurrently.
+    AsyncFunction("connect").SuspendBody { sessionId: String, host: String, port: Int,
+                                           username: String, password: String ->
       teardown(sessionId)
-      val state = SshSessionState()
-      sessions[sessionId] = state
 
       val jsch = JSch()
       val sess = jsch.getSession(username, host, port)
       sess.setPassword(password)
       sess.setConfig("StrictHostKeyChecking", "no")
       sess.setConfig("PreferredAuthentications", "keyboard-interactive,password")
+      val socketFactory = AbortableSocketFactory()
+      val state = SshSessionState(socketFactory = socketFactory, jschSession = sess)
+      sessions[sessionId] = state
+      sess.setSocketFactory(socketFactory)
       val handler = KeyboardInteractiveHandler(sessionId)
       sess.setUserInfo(handler)
-      try {
-        sess.connect(120_000)
-      } catch (e: Exception) {
-        val reason = handler.failReason
-        if (reason != null) throw IllegalStateException(reason)
-        throw e
-      }
 
-      openShell(sess, sessionId, state)
+      withContext(Dispatchers.IO) {
+        try {
+          sess.connect(120_000)
+        } catch (e: Exception) {
+          sessions.remove(sessionId)
+          val reason = handler.failReason
+          if (reason != null) throw IllegalStateException(reason)
+          throw e
+        }
+
+        if (!sessions.containsKey(sessionId)) {
+          try { sess.disconnect() } catch (_: Exception) {}
+          return@withContext
+        }
+        openShell(sess, sessionId, state)
+      }
     }
 
-    AsyncFunction("connectWithKey") { sessionId: String, host: String, port: Int,
-                                      username: String, privateKeyPem: String, passphrase: String ->
+    AsyncFunction("connectWithKey").SuspendBody { sessionId: String, host: String, port: Int,
+                                                  username: String, privateKeyPem: String, passphrase: String ->
       teardown(sessionId)
-      val state = SshSessionState()
-      sessions[sessionId] = state
 
       val jsch = JSch()
       val keyBytes = privateKeyPem.toByteArray(Charsets.UTF_8)
@@ -65,17 +104,29 @@ class ExpoSshModule : Module() {
       val sess = jsch.getSession(username, host, port)
       sess.setConfig("StrictHostKeyChecking", "no")
       sess.setConfig("PreferredAuthentications", "publickey,keyboard-interactive")
+      val socketFactory = AbortableSocketFactory()
+      val state = SshSessionState(socketFactory = socketFactory, jschSession = sess)
+      sessions[sessionId] = state
+      sess.setSocketFactory(socketFactory)
       val handler = KeyboardInteractiveHandler(sessionId)
       sess.setUserInfo(handler)
-      try {
-        sess.connect(120_000)
-      } catch (e: Exception) {
-        val reason = handler.failReason
-        if (reason != null) throw IllegalStateException(reason)
-        throw e
-      }
 
-      openShell(sess, sessionId, state)
+      withContext(Dispatchers.IO) {
+        try {
+          sess.connect(120_000)
+        } catch (e: Exception) {
+          sessions.remove(sessionId)
+          val reason = handler.failReason
+          if (reason != null) throw IllegalStateException(reason)
+          throw e
+        }
+
+        if (!sessions.containsKey(sessionId)) {
+          try { sess.disconnect() } catch (_: Exception) {}
+          return@withContext
+        }
+        openShell(sess, sessionId, state)
+      }
     }
 
     AsyncFunction("disconnect") { sessionId: String ->
@@ -137,23 +188,17 @@ class ExpoSshModule : Module() {
     ch.setPtyType("xterm-256color")
     ch.setPtySize(80, 24, 0, 0)
 
-    // Capture streams BEFORE connect() so we don't miss early data
     val inStream = ch.inputStream
     val outStream = ch.outputStream
 
     ch.connect(15_000)
 
-    state.jschSession = sess
     state.shellChannel = ch
     state.shellOutput = outStream
 
     startReading(inStream, sessionId, state)
   }
 
-  /**
-   * Reads SSH output on a daemon thread and emits onData events tagged with
-   * the session ID, so the JS side can route bytes to the correct VT instance.
-   */
   private fun startReading(inStream: InputStream, sessionId: String, state: SshSessionState) {
     val thread = Thread {
       val buf = ByteArray(8_192)
@@ -181,6 +226,7 @@ class ExpoSshModule : Module() {
 
   private fun teardown(sessionId: String) {
     val state = sessions.remove(sessionId) ?: return
+    state.socketFactory?.abort()
     state.readThread?.interrupt()
     try { state.shellChannel?.disconnect() } catch (_: Exception) {}
     try { state.jschSession?.disconnect() } catch (_: Exception) {}
