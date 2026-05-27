@@ -13,6 +13,7 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.net.InetSocketAddress
 import java.net.Socket
+import java.net.URI
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -57,11 +58,9 @@ class ExpoSshModule : Module() {
 
     Events("onData", "onError", "onClose", "onAuthChallenge")
 
-    // SuspendBody + withContext(IO) frees the single modules-queue thread so disconnect() can run concurrently.
     AsyncFunction("connect").SuspendBody { sessionId: String, host: String, port: Int,
                                            username: String, password: String ->
       teardown(sessionId)
-
       val jsch = JSch()
       val sess = jsch.getSession(username, host, port)
       sess.setPassword(password)
@@ -73,34 +72,16 @@ class ExpoSshModule : Module() {
       sess.setSocketFactory(socketFactory)
       val handler = KeyboardInteractiveHandler(sessionId)
       sess.setUserInfo(handler)
-
-      withContext(Dispatchers.IO) {
-        try {
-          sess.connect(120_000)
-        } catch (e: Exception) {
-          sessions.remove(sessionId)
-          val reason = handler.failReason
-          if (reason != null) throw IllegalStateException(reason)
-          throw e
-        }
-
-        if (!sessions.containsKey(sessionId)) {
-          try { sess.disconnect() } catch (_: Exception) {}
-          return@withContext
-        }
-        openShell(sess, sessionId, state)
-      }
+      doConnect(sess, sessionId, state, handler)
     }
 
     AsyncFunction("connectWithKey").SuspendBody { sessionId: String, host: String, port: Int,
                                                   username: String, privateKeyPem: String, passphrase: String ->
       teardown(sessionId)
-
       val jsch = JSch()
       val keyBytes = privateKeyPem.toByteArray(Charsets.UTF_8)
       val phrase = passphrase.ifEmpty { null }?.toByteArray(Charsets.UTF_8)
       jsch.addIdentity("cy-tty-key", keyBytes, null, phrase)
-
       val sess = jsch.getSession(username, host, port)
       sess.setConfig("StrictHostKeyChecking", "no")
       sess.setConfig("PreferredAuthentications", "publickey,keyboard-interactive")
@@ -110,23 +91,7 @@ class ExpoSshModule : Module() {
       sess.setSocketFactory(socketFactory)
       val handler = KeyboardInteractiveHandler(sessionId)
       sess.setUserInfo(handler)
-
-      withContext(Dispatchers.IO) {
-        try {
-          sess.connect(120_000)
-        } catch (e: Exception) {
-          sessions.remove(sessionId)
-          val reason = handler.failReason
-          if (reason != null) throw IllegalStateException(reason)
-          throw e
-        }
-
-        if (!sessions.containsKey(sessionId)) {
-          try { sess.disconnect() } catch (_: Exception) {}
-          return@withContext
-        }
-        openShell(sess, sessionId, state)
-      }
+      doConnect(sess, sessionId, state, handler)
     }
 
     AsyncFunction("disconnect") { sessionId: String ->
@@ -145,14 +110,42 @@ class ExpoSshModule : Module() {
     }
   }
 
-  // ── Private helpers ────────────────────────────────────────────────────────
-
   private val urlRegex = Regex("https?://\\S+")
+  private val knownAuthHosts = setOf("login.tailscale.com")
+
+  private fun isKnownAuthUrl(url: String): Boolean {
+    return try {
+      val host = URI(url).host ?: return false
+      knownAuthHosts.any { host == it || host.endsWith(".$it") }
+    } catch (_: Exception) { false }
+  }
+
+  // SuspendBody + withContext(IO) frees the modules-queue thread so disconnect() can run concurrently.
+  private suspend fun doConnect(
+    sess: JSchSession, sessionId: String, state: SshSessionState, handler: KeyboardInteractiveHandler,
+  ) {
+    withContext(Dispatchers.IO) {
+      try {
+        sess.connect(120_000)
+      } catch (e: Exception) {
+        sessions.remove(sessionId)
+        val reason = handler.failReason
+        if (reason != null) throw IllegalStateException(reason)
+        throw e
+      }
+      if (!sessions.containsKey(sessionId)) {
+        try { sess.disconnect() } catch (_: Exception) {}
+        return@withContext
+      }
+      openShell(sess, sessionId, state)
+    }
+  }
 
   private inner class KeyboardInteractiveHandler(
     private val sessionId: String,
   ) : UserInfo, UIKeyboardInteractive {
     var failReason: String? = null
+    @Volatile private var authChallengeFired = false
 
     override fun promptKeyboardInteractive(
       destination: String, name: String, instruction: String,
@@ -160,9 +153,15 @@ class ExpoSshModule : Module() {
     ): Array<String>? {
       val url = urlRegex.find(instruction)?.value
         ?: prompt.firstOrNull()?.let { urlRegex.find(it)?.value }
-      if (url != null) {
-        sendEvent("onAuthChallenge", mapOf("sessionId" to sessionId, "url" to url))
+      if (url != null && isKnownAuthUrl(url)) {
+        if (!authChallengeFired) {
+          authChallengeFired = true
+          sendEvent("onAuthChallenge", mapOf("sessionId" to sessionId, "url" to url))
+        }
         return Array(prompt.size) { "" }
+      }
+      if (prompt.isEmpty() && authChallengeFired) {
+        return Array(0) { "" }
       }
       failReason = "keyboard-interactive auth requires user input — not yet supported"
       return null
@@ -171,8 +170,10 @@ class ExpoSshModule : Module() {
     override fun promptYesNo(message: String) = true
 
     override fun showMessage(message: String) {
-      val url = urlRegex.find(message)?.value
-      if (url != null) {
+      val url = urlRegex.find(message)?.value ?: return
+      if (!isKnownAuthUrl(url)) return
+      if (!authChallengeFired) {
+        authChallengeFired = true
         sendEvent("onAuthChallenge", mapOf("sessionId" to sessionId, "url" to url))
       }
     }
