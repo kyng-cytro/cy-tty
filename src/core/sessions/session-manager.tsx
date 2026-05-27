@@ -11,7 +11,6 @@ import { Linking, StyleSheet, View } from "react-native";
 
 import { KeyStore } from "@/core/keys/key-store";
 import { useSshUrlSettings } from "@/core/security/ssh-url-settings-context";
-import { isUrlAllowed } from "@/core/security/ssh-url-settings";
 
 import type { SshProfile } from "@/core/profiles/types";
 import type { TerminalState } from "@/core/terminal/types";
@@ -100,28 +99,18 @@ function SessionNodeInner({
 
   const { settings } = useSshUrlSettings();
 
-  // Declared before useSshSession so handleAuthChallenge can reference it
   const disconnectRef = useRef<() => void>(() => {});
 
   const handleAuthChallenge = useCallback(
     (url: string) => {
-      if (!settings.enabled) {
-        setAuthOverride({
-          status: "error",
-          error:
-            "SSH URL opening is disabled. Enable it in Settings → Security.",
-        });
-        setTimeout(() => disconnectRef.current(), 100);
-        return;
-      }
-      if (isUrlAllowed(url, settings)) {
+      if (settings.autoOpen) {
         Linking.openURL(url).catch(() => {});
         return;
       }
       pendingAuthUrlRef.current = url;
       setPendingAuthUrl(url);
     },
-    [settings],
+    [settings.autoOpen],
   );
 
   const { status, error, write, disconnect } = useSshSession({
@@ -212,11 +201,7 @@ function SessionNodeInner({
   return null;
 }
 
-// Loads the private key PEM (if needed) before mounting SessionNodeInner.
-// useSshSession connects immediately on mount with [] deps, so the PEM must
-// be available before the inner component renders.
 function SessionNode({ id, profile, onUpdate }: SessionNodeProps) {
-  // undefined = still loading, null = not needed / failed
   const [privateKeyPem, setPrivateKeyPem] = useState<string | null | undefined>(
     profile.authMethod === "key" ? undefined : null,
   );

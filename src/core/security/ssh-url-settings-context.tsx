@@ -17,9 +17,7 @@ import {
 
 export interface SshUrlSettingsContextValue {
   settings: SshUrlOpenSettings;
-  setEnabled: (enabled: boolean) => void;
-  addPattern: (pattern: string) => void;
-  removePattern: (pattern: string) => void;
+  setAutoOpen: (autoOpen: boolean) => void;
 }
 
 const SshUrlSettingsContext = createContext<SshUrlSettingsContextValue | null>(null);
@@ -37,34 +35,17 @@ export function SshUrlSettingsProvider({ children }: { children: ReactNode }) {
     void loadSshUrlSettings().then(s => setSettingsState(s));
   }, []);
 
-  const setEnabled = useCallback((enabled: boolean) => {
+  const setAutoOpen = useCallback((autoOpen: boolean) => {
     setSettingsState(prev => {
-      const next = { ...prev, enabled };
-      void saveSshUrlSettings(next);
-      return next;
-    });
-  }, []);
-
-  const addPattern = useCallback((pattern: string) => {
-    setSettingsState(prev => {
-      if (prev.patterns.includes(pattern)) return prev;
-      const next = { ...prev, patterns: [...prev.patterns, pattern] };
-      void saveSshUrlSettings(next);
-      return next;
-    });
-  }, []);
-
-  const removePattern = useCallback((pattern: string) => {
-    setSettingsState(prev => {
-      const next = { ...prev, patterns: prev.patterns.filter(p => p !== pattern) };
+      const next = { ...prev, autoOpen };
       void saveSshUrlSettings(next);
       return next;
     });
   }, []);
 
   const value = useMemo<SshUrlSettingsContextValue>(
-    () => ({ settings, setEnabled, addPattern, removePattern }),
-    [settings, setEnabled, addPattern, removePattern],
+    () => ({ settings, setAutoOpen }),
+    [settings, setAutoOpen],
   );
 
   return (
