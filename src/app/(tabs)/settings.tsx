@@ -180,7 +180,7 @@ function SecuritySection() {
           <>
             <Divider />
 
-            <View style={[styles.patternHeader, { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 }]}>
+            <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 }}>
               <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, letterSpacing: 0.5, opacity: 0.7 }}>
                 ALLOWED URL PATTERNS
               </Text>
@@ -725,7 +725,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: 'center',
   },
-  patternHeader: {},
   patternInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
