@@ -4,6 +4,7 @@ import {
   FlatList,
   ScrollView,
   StyleSheet,
+  TextInput,
   TouchableOpacity,
   View,
   type GestureResponderEvent,
@@ -15,9 +16,11 @@ import {
   Card,
   Divider,
   IconButton,
+  Switch,
   Text,
   useTheme,
 } from 'react-native-paper';
+import { useSshUrlSettings } from '@/core/security/ssh-url-settings-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -128,6 +131,133 @@ function SshKeysSection() {
   );
 }
 
+
+function SecuritySection() {
+  const theme = useTheme();
+  const { settings, setEnabled, addPattern, removePattern } = useSshUrlSettings();
+  const [draft, setDraft] = useState('');
+
+  const handleAdd = useCallback(() => {
+    const trimmed = draft.trim();
+    if (!trimmed) return;
+    addPattern(trimmed);
+    setDraft('');
+  }, [draft, addPattern]);
+
+  return (
+    <View style={styles.section}>
+      <Text
+        variant="titleSmall"
+        style={[styles.sectionTitle, styles.sectionRow, { color: theme.colors.onSurfaceVariant }]}
+      >
+        SECURITY
+      </Text>
+
+      <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
+        <View style={styles.itemRow}>
+          <MaterialCommunityIcons
+            name="shield-link-variant-outline"
+            size={22}
+            color={theme.colors.onSurfaceVariant}
+            style={styles.listIcon}
+          />
+          <View style={styles.itemText}>
+            <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>
+              Allow SSH URL opening
+            </Text>
+            <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, opacity: 0.7 }}>
+              Permit SSH sessions to open browser links for authentication
+            </Text>
+          </View>
+          <Switch
+            value={settings.enabled}
+            onValueChange={setEnabled}
+            color={theme.colors.primary}
+          />
+        </View>
+
+        {settings.enabled && (
+          <>
+            <Divider />
+
+            <View style={[styles.patternHeader, { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 }]}>
+              <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, letterSpacing: 0.5, opacity: 0.7 }}>
+                ALLOWED URL PATTERNS
+              </Text>
+            </View>
+
+            {settings.patterns.length === 0 && (
+              <View style={[styles.itemRow, { paddingLeft: 16 }]}>
+                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, opacity: 0.6 }}>
+                  No patterns — all URLs require manual confirmation
+                </Text>
+              </View>
+            )}
+
+            {settings.patterns.map((p, i) => (
+              <View key={p}>
+                <View style={styles.itemRow}>
+                  <MaterialCommunityIcons
+                    name="regex"
+                    size={18}
+                    color={theme.colors.secondary}
+                    style={styles.listIcon}
+                  />
+                  <Text
+                    variant="bodySmall"
+                    style={{ flex: 1, color: theme.colors.onSurface, fontFamily: 'monospace' }}
+                    numberOfLines={1}
+                  >
+                    {p}
+                  </Text>
+                  <IconButton
+                    icon="delete-outline"
+                    size={18}
+                    iconColor={theme.colors.error}
+                    onPress={() => removePattern(p)}
+                    style={styles.itemAction}
+                  />
+                </View>
+                {i < settings.patterns.length - 1 && <Divider />}
+              </View>
+            ))}
+
+            <Divider />
+
+            <View style={styles.patternInputRow}>
+              <TextInput
+                value={draft}
+                onChangeText={setDraft}
+                placeholder="https://login.tailscale.com/*"
+                placeholderTextColor={theme.colors.onSurfaceVariant + '80'}
+                style={[
+                  styles.patternInput,
+                  {
+                    color: theme.colors.onSurface,
+                    borderColor: theme.colors.outline,
+                  },
+                ]}
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="done"
+                onSubmitEditing={handleAdd}
+              />
+              <Button
+                mode="text"
+                compact
+                onPress={handleAdd}
+                disabled={!draft.trim()}
+                textColor={theme.colors.primary}
+              >
+                Add
+              </Button>
+            </View>
+          </>
+        )}
+      </Card>
+    </View>
+  );
+}
 
 function ThemeSwatch({
   item,
@@ -407,6 +537,7 @@ export default function SettingsScreen() {
 
       <ScrollView contentContainerStyle={styles.scroll}>
         <SshKeysSection />
+        <SecuritySection />
         <TerminalSection />
       </ScrollView>
     </SafeAreaView>
@@ -593,5 +724,23 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginTop: 4,
     textAlign: 'center',
+  },
+  patternHeader: {},
+  patternInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 16,
+    paddingRight: 4,
+    paddingVertical: 8,
+    gap: 8,
+  },
+  patternInput: {
+    flex: 1,
+    height: 36,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    fontSize: 13,
+    fontFamily: 'monospace',
   },
 });

@@ -83,7 +83,8 @@ function applyModifier(data: string, mod: "ctrl" | "alt"): string {
 
 function StatusOverlay({ onExit }: { onExit: () => void }) {
   const theme = useTheme();
-  const { status, error } = useTerminalSessionContext();
+  const { status, error, pendingAuthUrl, approveAuth, denyAuth } =
+    useTerminalSessionContext();
 
   if (status === "connected") return null;
 
@@ -91,7 +92,54 @@ function StatusOverlay({ onExit }: { onExit: () => void }) {
     <View
       style={[styles.overlay, { backgroundColor: theme.colors.surface + "ee" }]}
     >
-      {status === "connecting" && (
+      {status === "connecting" && pendingAuthUrl && (
+        <>
+          <MaterialCommunityIcons
+            name="shield-link-variant-outline"
+            size={52}
+            color={theme.colors.primary}
+          />
+          <Text
+            variant="titleMedium"
+            style={{ color: theme.colors.onSurface, marginTop: 8 }}
+          >
+            Authentication Required
+          </Text>
+          <Text
+            variant="bodyMedium"
+            style={[
+              styles.overlayText,
+              { color: theme.colors.onSurfaceVariant },
+            ]}
+          >
+            This session wants to open a link in your browser to complete
+            authentication:
+          </Text>
+          <Text
+            variant="labelSmall"
+            numberOfLines={3}
+            style={[
+              styles.overlayUrl,
+              {
+                color: theme.colors.primary,
+                backgroundColor: theme.colors.surfaceVariant,
+              },
+            ]}
+          >
+            {pendingAuthUrl}
+          </Text>
+          <View style={styles.overlayActions}>
+            <Button mode="outlined" onPress={denyAuth}>
+              Deny
+            </Button>
+            <Button mode="contained" onPress={approveAuth}>
+              Open in Browser
+            </Button>
+          </View>
+        </>
+      )}
+
+      {status === "connecting" && !pendingAuthUrl && (
         <>
           <ActivityIndicator size="large" color={theme.colors.primary} />
           <Text
@@ -271,6 +319,7 @@ export default function TerminalScreen() {
   const pinchStartSize = useRef(fontSize);
 
   const pinchGesture = Gesture.Pinch()
+    .enabled(session?.status === "connected")
     .onStart(() => {
       pinchStartSize.current = fontSize;
     })
@@ -340,6 +389,9 @@ export default function TerminalScreen() {
       hideKeyboard,
       modifier,
       toggleModifier,
+      pendingAuthUrl: session?.pendingAuthUrl ?? null,
+      approveAuth: session?.approveAuth ?? (() => {}),
+      denyAuth: session?.denyAuth ?? (() => {}),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
@@ -353,6 +405,9 @@ export default function TerminalScreen() {
       hideKeyboard,
       modifier,
       toggleModifier,
+      session?.pendingAuthUrl,
+      session?.approveAuth,
+      session?.denyAuth,
     ],
   );
 
@@ -428,6 +483,19 @@ const styles = StyleSheet.create({
   },
   overlayText: { textAlign: "center", marginTop: 4 },
   overlayBtn: { marginTop: 12, minWidth: 110 },
+  overlayUrl: {
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    fontFamily: "monospace",
+    textAlign: "center",
+  },
+  overlayActions: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 16,
+  },
   floatingHeader: {
     position: "absolute",
     top: 0,

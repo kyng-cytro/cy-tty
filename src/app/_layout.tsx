@@ -1,4 +1,5 @@
 import { SessionManagerProvider } from "@/core/sessions/session-manager";
+import { SshUrlSettingsProvider } from "@/core/security/ssh-url-settings-context";
 import { TerminalPreferencesProvider } from "@/core/theme/preferences-context";
 import { useMaterial3Theme } from "@pchmn/expo-material3-theme";
 import { Stack } from "expo-router";
@@ -24,6 +25,7 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={styles.root}>
+      <SshUrlSettingsProvider>
       <SessionManagerProvider>
         <TerminalPreferencesProvider>
           <PaperProvider theme={theme}>
@@ -44,6 +46,7 @@ export default function RootLayout() {
           </PaperProvider>
         </TerminalPreferencesProvider>
       </SessionManagerProvider>
+      </SshUrlSettingsProvider>
     </GestureHandlerRootView>
   );
 }

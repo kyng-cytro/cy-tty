@@ -3,6 +3,8 @@ package expo.modules.ssh
 import com.jcraft.jsch.ChannelShell
 import com.jcraft.jsch.JSch
 import com.jcraft.jsch.Session as JSchSession
+import com.jcraft.jsch.UIKeyboardInteractive
+import com.jcraft.jsch.UserInfo
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import java.io.InputStream
@@ -23,7 +25,7 @@ class ExpoSshModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("ExpoSsh")
 
-    Events("onData", "onError", "onClose")
+    Events("onData", "onError", "onClose", "onAuthChallenge")
 
     AsyncFunction("connect") { sessionId: String, host: String, port: Int,
                                username: String, password: String ->
@@ -35,8 +37,16 @@ class ExpoSshModule : Module() {
       val sess = jsch.getSession(username, host, port)
       sess.setPassword(password)
       sess.setConfig("StrictHostKeyChecking", "no")
-      sess.setConfig("PreferredAuthentications", "password")
-      sess.connect(15_000)
+      sess.setConfig("PreferredAuthentications", "keyboard-interactive,password")
+      val handler = KeyboardInteractiveHandler(sessionId)
+      sess.setUserInfo(handler)
+      try {
+        sess.connect(120_000)
+      } catch (e: Exception) {
+        val reason = handler.failReason
+        if (reason != null) throw IllegalStateException(reason)
+        throw e
+      }
 
       openShell(sess, sessionId, state)
     }
@@ -54,8 +64,16 @@ class ExpoSshModule : Module() {
 
       val sess = jsch.getSession(username, host, port)
       sess.setConfig("StrictHostKeyChecking", "no")
-      sess.setConfig("PreferredAuthentications", "publickey")
-      sess.connect(15_000)
+      sess.setConfig("PreferredAuthentications", "publickey,keyboard-interactive")
+      val handler = KeyboardInteractiveHandler(sessionId)
+      sess.setUserInfo(handler)
+      try {
+        sess.connect(120_000)
+      } catch (e: Exception) {
+        val reason = handler.failReason
+        if (reason != null) throw IllegalStateException(reason)
+        throw e
+      }
 
       openShell(sess, sessionId, state)
     }
@@ -77,6 +95,42 @@ class ExpoSshModule : Module() {
   }
 
   // ── Private helpers ────────────────────────────────────────────────────────
+
+  private val urlRegex = Regex("https?://\\S+")
+
+  private inner class KeyboardInteractiveHandler(
+    private val sessionId: String,
+  ) : UserInfo, UIKeyboardInteractive {
+    var failReason: String? = null
+
+    override fun promptKeyboardInteractive(
+      destination: String, name: String, instruction: String,
+      prompt: Array<String>, echo: BooleanArray,
+    ): Array<String>? {
+      val url = urlRegex.find(instruction)?.value
+        ?: prompt.firstOrNull()?.let { urlRegex.find(it)?.value }
+      if (url != null) {
+        sendEvent("onAuthChallenge", mapOf("sessionId" to sessionId, "url" to url))
+        return Array(prompt.size) { "" }
+      }
+      failReason = "keyboard-interactive auth requires user input — not yet supported"
+      return null
+    }
+
+    override fun promptYesNo(message: String) = true
+
+    override fun showMessage(message: String) {
+      val url = urlRegex.find(message)?.value
+      if (url != null) {
+        sendEvent("onAuthChallenge", mapOf("sessionId" to sessionId, "url" to url))
+      }
+    }
+
+    override fun promptPassword(message: String) = true
+    override fun promptPassphrase(message: String) = true
+    override fun getPassword(): String? = null
+    override fun getPassphrase(): String? = null
+  }
 
   private fun openShell(sess: JSchSession, sessionId: String, state: SshSessionState) {
     val ch = sess.openChannel("shell") as ChannelShell

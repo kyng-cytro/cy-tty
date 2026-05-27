@@ -19,6 +19,7 @@ export interface UseSshSessionOptions {
   cols: number;
   rows: number;
   onData: (data: string) => void;
+  onAuthChallenge?: (url: string) => void;
 }
 
 export interface UseSshSessionResult {
@@ -72,6 +73,7 @@ export function useSshSession({
   cols,
   rows,
   onData,
+  onAuthChallenge,
 }: UseSshSessionOptions): UseSshSessionResult {
   const [status, setStatus] = useState<SshSessionStatus>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -80,6 +82,11 @@ export function useSshSession({
   useEffect(() => {
     onDataRef.current = onData;
   }, [onData]);
+
+  const onAuthChallengeRef = useRef(onAuthChallenge);
+  useEffect(() => {
+    onAuthChallengeRef.current = onAuthChallenge;
+  }, [onAuthChallenge]);
 
   const colsRef = useRef(cols);
   const rowsRef = useRef(rows);
@@ -100,6 +107,11 @@ export function useSshSession({
     const closeSub = SshClient.onClose(({ sessionId: id }) => {
       if (!alive || id !== sessionId) return;
       setStatus("disconnected");
+    });
+
+    const challengeSub = SshClient.onAuthChallenge(({ sessionId: id, url }) => {
+      if (id !== sessionId) return;
+      onAuthChallengeRef.current?.(url);
     });
 
     setStatus("connecting");
@@ -135,6 +147,7 @@ export function useSshSession({
       dataSub.remove();
       errorSub.remove();
       closeSub.remove();
+      challengeSub.remove();
       SshClient.disconnect(sessionId).catch(() => {});
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

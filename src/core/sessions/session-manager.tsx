@@ -7,9 +7,11 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { StyleSheet, View } from "react-native";
+import { Linking, StyleSheet, View } from "react-native";
 
 import { KeyStore } from "@/core/keys/key-store";
+import { useSshUrlSettings } from "@/core/security/ssh-url-settings-context";
+import { isUrlAllowed } from "@/core/security/ssh-url-settings";
 
 import type { SshProfile } from "@/core/profiles/types";
 import type { TerminalState } from "@/core/terminal/types";
@@ -34,6 +36,9 @@ export interface LiveSession {
   cols: number;
   rows: number;
   resize: (cellWidth: number, cellHeight: number) => void;
+  pendingAuthUrl: string | null;
+  approveAuth: () => void;
+  denyAuth: () => void;
 }
 
 interface SessionManagerContextValue {
@@ -86,6 +91,39 @@ function SessionNodeInner({
 
   const { state, processBytes } = useTerminal({ cols, rows });
 
+  const [pendingAuthUrl, setPendingAuthUrl] = useState<string | null>(null);
+  const pendingAuthUrlRef = useRef<string | null>(null);
+  const [authOverride, setAuthOverride] = useState<{
+    status: SshSessionStatus;
+    error: string;
+  } | null>(null);
+
+  const { settings } = useSshUrlSettings();
+
+  // Declared before useSshSession so handleAuthChallenge can reference it
+  const disconnectRef = useRef<() => void>(() => {});
+
+  const handleAuthChallenge = useCallback(
+    (url: string) => {
+      if (!settings.enabled) {
+        setAuthOverride({
+          status: "error",
+          error:
+            "SSH URL opening is disabled. Enable it in Settings → Security.",
+        });
+        setTimeout(() => disconnectRef.current(), 100);
+        return;
+      }
+      if (isUrlAllowed(url, settings)) {
+        Linking.openURL(url).catch(() => {});
+        return;
+      }
+      pendingAuthUrlRef.current = url;
+      setPendingAuthUrl(url);
+    },
+    [settings],
+  );
+
   const { status, error, write, disconnect } = useSshSession({
     sessionId: id,
     host: profile.host,
@@ -97,11 +135,9 @@ function SessionNodeInner({
     cols,
     rows,
     onData: processBytes,
+    onAuthChallenge: handleAuthChallenge,
   });
 
-  // write/disconnect come from useSshSession(useCallback([])) so they are
-  // already stable, but we forward through refs so we never need to list
-  // them as useEffect deps — avoiding spurious effect firings.
   const resizeFn = useCallback((cw: number, ch: number) => {
     setCellSize((prev) =>
       prev.width === cw && prev.height === ch
@@ -111,7 +147,6 @@ function SessionNodeInner({
   }, []);
 
   const writeRef = useRef(write);
-  const disconnectRef = useRef(disconnect);
   const resizeRef = useRef(resizeFn);
 
   writeRef.current = write;
@@ -125,27 +160,52 @@ function SessionNodeInner({
     [],
   );
 
+  const approveAuth = useCallback(() => {
+    const url = pendingAuthUrlRef.current;
+    if (!url) return;
+    Linking.openURL(url).catch(() => {});
+    pendingAuthUrlRef.current = null;
+    setPendingAuthUrl(null);
+  }, []);
+
+  const denyAuth = useCallback(() => {
+    pendingAuthUrlRef.current = null;
+    setPendingAuthUrl(null);
+    setAuthOverride({
+      status: "error",
+      error: "Browser authentication was denied.",
+    });
+    setTimeout(() => disconnectRef.current(), 100);
+  }, []);
+
   useEffect(() => {
     onUpdate(id, {
-      status,
-      error,
+      status: authOverride?.status ?? status,
+      error: authOverride?.error ?? error,
       write: stableWrite,
       disconnect: stableDisconnect,
       terminalState: state,
       cols,
       rows,
       resize: stableResize,
+      pendingAuthUrl,
+      approveAuth,
+      denyAuth,
     });
   }, [
     id,
     status,
     error,
+    authOverride,
     state,
     cols,
     rows,
     stableWrite,
     stableDisconnect,
     stableResize,
+    pendingAuthUrl,
+    approveAuth,
+    denyAuth,
     onUpdate,
   ]);
 
@@ -242,6 +302,9 @@ export function SessionManagerProvider({ children }: { children: ReactNode }) {
       cols: 80,
       rows: 24,
       resize: () => {},
+      pendingAuthUrl: null,
+      approveAuth: () => {},
+      denyAuth: () => {},
     };
     setEntries((prev) => {
       const next = new Map(prev);
