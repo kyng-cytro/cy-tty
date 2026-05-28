@@ -86,8 +86,35 @@ function base64ToBytes(b64: string): Uint8Array {
   return bytes;
 }
 
+const PEM_HEADER = /-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----/;
+const PEM_FOOTER = /-----END (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----/;
+
+/**
+ * Returns null if `text` looks like a valid PEM private key, or an error
+ * string describing why it is not.
+ */
+export function validatePem(text: string): string | null {
+  const t = text.trim();
+  if (!PEM_HEADER.test(t)) {
+    return 'Missing -----BEGIN ... PRIVATE KEY----- header';
+  }
+  if (!PEM_FOOTER.test(t)) {
+    return 'Missing -----END ... PRIVATE KEY----- footer';
+  }
+  const body = t
+    .replace(/-----BEGIN[^-]*-----/, '')
+    .replace(/-----END[^-]*-----/, '')
+    .replace(/\s/g, '');
+  if (body.length === 0) {
+    return 'Key body is empty';
+  }
+  return null;
+}
+
 export const KeyStore = {
   async import(pem: string, label?: string): Promise<string> {
+    const err = validatePem(pem);
+    if (err) throw new Error(`Invalid PEM: ${err}`);
     await ensureDir();
     const id = Crypto.randomUUID();
     const keyBytes = await Crypto.getRandomBytesAsync(32);
