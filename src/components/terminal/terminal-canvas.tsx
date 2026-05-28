@@ -93,7 +93,6 @@ export function TerminalCanvas({
     }
   }, [cellWidth, cellHeight, onCellSize]);
 
-  // Build the display grid: when scrolled, slice from combined scrollback+grid
   const displayGrid = useMemo(() => {
     if (scrollOffset === 0) return state.grid;
     const combined: TerminalCell[][] = [...state.scrollback, ...state.grid];
@@ -129,7 +128,6 @@ export function TerminalCanvas({
   const cursorX = state.cursor.col * cellWidth;
   const cursorY = state.cursor.row * cellHeight;
 
-  // Scroll indicator geometry
   const totalLines = state.scrollback.length + state.rows;
   const indicatorHeight = totalLines > state.rows
     ? Math.max(16, (state.rows / totalLines) * canvasHeight)
@@ -139,12 +137,12 @@ export function TerminalCanvas({
     : 0;
 
   if (!regularFont || cellWidth === 0) {
-    return <View style={[{ backgroundColor: bgHex }, styles.loading, style]} />;
+    return <View style={[{ backgroundColor: bgHex }, style]} />;
   }
 
   return (
     <View style={[styles.wrapper, { backgroundColor: bgHex }, style]}>
-      <Canvas style={[styles.canvas, { width: canvasWidth, height: canvasHeight }]}>
+      <Canvas style={{ width: canvasWidth, height: canvasHeight }}>
         <Rect x={0} y={0} width={canvasWidth} height={canvasHeight} color={bgHex} />
 
         {displayGrid.map((cells, rowIndex) => (
@@ -191,6 +189,4 @@ export function TerminalCanvas({
 
 const styles = StyleSheet.create({
   wrapper: { overflow: "hidden" },
-  canvas: {},
-  loading: {},
 });
