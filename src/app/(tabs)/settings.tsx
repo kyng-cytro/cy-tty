@@ -450,17 +450,19 @@ function BackupSection() {
   const [exportBusy, setExportBusy] = useState(false);
   const [importBusy, setImportBusy] = useState(false);
   const [dialogIntent, setDialogIntent] = useState<PasswordDialogIntent | null>(null);
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
+  const passwordRef = useRef('');
+  const confirmRef = useRef('');
   const [showPassword, setShowPassword] = useState(false);
   const [passwordError, setPasswordError] = useState('');
+  const [dialogKey, setDialogKey] = useState(0);
 
   const closeDialog = useCallback(() => {
     setDialogIntent(null);
-    setPassword('');
-    setConfirm('');
+    passwordRef.current = '';
+    confirmRef.current = '';
     setShowPassword(false);
     setPasswordError('');
+    setDialogKey((k) => k + 1);
   }, []);
 
   const handleExport = useCallback(() => {
@@ -491,26 +493,29 @@ function BackupSection() {
   const handleConfirm = useCallback(async () => {
     if (!dialogIntent) return;
 
+    const pw = passwordRef.current;
+    const conf = confirmRef.current;
+
     if (dialogIntent === 'export') {
-      if (password.length < 6) {
+      if (pw.length < 6) {
         setPasswordError('Password must be at least 6 characters.');
         return;
       }
-      if (password !== confirm) {
+      if (pw !== conf) {
         setPasswordError('Passwords do not match.');
         return;
       }
       closeDialog();
       setExportBusy(true);
       try {
-        await exportBackup(password);
+        await exportBackup(pw);
       } catch (e) {
         Alert.alert('Export failed', e instanceof Error ? e.message : 'Unknown error');
       } finally {
         setExportBusy(false);
       }
     } else {
-      if (!password) {
+      if (!pw) {
         setPasswordError('Password is required.');
         return;
       }
@@ -518,7 +523,7 @@ function BackupSection() {
       closeDialog();
       setImportBusy(true);
       try {
-        await importBackup(fileUri, password);
+        await importBackup(fileUri, pw);
         Alert.alert('Restored', 'Backup restored successfully. Restart the app to see all changes.');
       } catch (e) {
         Alert.alert('Restore failed', e instanceof Error ? e.message : 'Unknown error');
@@ -526,7 +531,7 @@ function BackupSection() {
         setImportBusy(false);
       }
     }
-  }, [dialogIntent, password, closeDialog]);
+  }, [dialogIntent, closeDialog]);
 
   const isExport = dialogIntent === 'export';
 
@@ -601,13 +606,14 @@ function BackupSection() {
                 : 'Enter the password you set when exporting.'}
             </Text>
             <TextInput
+              key={`pw-${dialogKey}`}
               mode="outlined"
               label="Password"
-              value={password}
-              onChangeText={(t) => { setPassword(t); setPasswordError(''); }}
+              defaultValue=""
+              onChangeText={(t) => { passwordRef.current = t; setPasswordError(''); }}
               secureTextEntry={!showPassword}
               autoFocus
-              error={!!passwordError && !confirm}
+              error={!!passwordError}
               right={
                 <TextInput.Icon
                   icon={showPassword ? 'eye-off' : 'eye'}
@@ -617,10 +623,11 @@ function BackupSection() {
             />
             {isExport && (
               <TextInput
+                key={`cf-${dialogKey}`}
                 mode="outlined"
                 label="Confirm password"
-                value={confirm}
-                onChangeText={(t) => { setConfirm(t); setPasswordError(''); }}
+                defaultValue=""
+                onChangeText={(t) => { confirmRef.current = t; setPasswordError(''); }}
                 secureTextEntry={!showPassword}
                 error={!!passwordError}
                 style={{ marginTop: 8 }}
