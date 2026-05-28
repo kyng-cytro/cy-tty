@@ -1,9 +1,3 @@
-/**
- * Terminal grid state manager.
- * Consumes VTParser actions and maintains the grid, cursor, attributes,
- * scroll region, and alternate screen buffer.
- */
-
 import { VTParser, parseParams, type ParserActions } from './parser';
 import type {
   CellColor,
@@ -13,8 +7,6 @@ import type {
   TerminalCursor,
   TerminalDelta,
 } from './types';
-
-// ── Constants / helpers ───────────────────────────────────────────────────
 
 const DEFAULT_FG: CellColor = { kind: 'default' };
 const DEFAULT_BG: CellColor = { kind: 'default' };
@@ -44,8 +36,6 @@ function makeRow(cols: number): TerminalCell[] {
 function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, n));
 }
-
-// ── Saved cursor ──────────────────────────────────────────────────────────
 
 interface SavedCursor {
   row: number;
@@ -81,18 +71,13 @@ function defaultAttrs(): CellAttrs {
   };
 }
 
-// ── Terminal ──────────────────────────────────────────────────────────────
-
 const SCROLLBACK_MAX = 1000;
 
 export class Terminal implements ParserActions {
-  // Grid state
   private grid: TerminalCell[][];
   private altGrid: TerminalCell[][];
-  // Scrollback history (main screen only, oldest row first)
   private scrollback: TerminalCell[][] = [];
 
-  // Cursor
   private curRow = 0;
   private curCol = 0;
   private curVisible = true;
@@ -100,21 +85,16 @@ export class Terminal implements ParserActions {
   private savedCursor: SavedCursor | null = null;
   private altSavedCursor: SavedCursor | null = null;
 
-  // Scroll region (inclusive, 0-based)
   private scrollTop = 0;
   private scrollBottom: number;
 
-  // Current attributes applied to new cells
   private attrs: CellAttrs = defaultAttrs();
 
-  // Modes
   private altScreenActive = false;
-  private autoWrapPending = false;   // deferred wrap after col == cols
+  private autoWrapPending = false;
 
-  // Title
   private titleStr = '';
 
-  // Dirty tracking
   private dirtySet = new Set<number>();
 
   private readonly parser: VTParser;
@@ -129,8 +109,6 @@ export class Terminal implements ParserActions {
     this.parser = new VTParser(this);
   }
 
-  // ── Public API ──────────────────────────────────────────────────────────
-
   processBytes(data: string): TerminalDelta {
     this.dirtySet.clear();
     this.autoWrapPending = false;
@@ -138,7 +116,6 @@ export class Terminal implements ParserActions {
     let cleared = false;
     let titleChanged: string | null = null;
 
-    // Capture clearScreen events via a side channel
     const prev = { cleared: false, title: null as string | null };
     this._clearFlag = prev;
 
@@ -163,13 +140,11 @@ export class Terminal implements ParserActions {
     };
   }
 
-  // Side channels so processBytes can capture clear/title/scrollback events
+  // Side channel so processBytes can capture clear/title events fired during parser.feed()
   private _clearFlag: { cleared: boolean; title: string | null } | null = null;
   private _appendedScrollback: TerminalCell[][] = [];
 
   resize(cols: number, rows: number): void {
-    const prevRows = this.rows;
-    const prevCols = this.cols;
     this.cols = cols;
     this.rows = rows;
     this.scrollBottom = rows - 1;
@@ -205,13 +180,10 @@ export class Terminal implements ParserActions {
     };
   }
 
-  // ── ParserActions implementation ────────────────────────────────────────
-
-  /** Printable character. */
   print(char: string): void {
     if (this.autoWrapPending) {
       this.curCol = 0;
-      this.lineFeed(true);
+      this.lineFeed();
       this.autoWrapPending = false;
     }
 
@@ -221,7 +193,7 @@ export class Terminal implements ParserActions {
     if (col < this.cols && row < this.rows) {
       this.grid[row]![col] = {
         char,
-        width: 1,          // TODO: detect wide (CJK) chars
+        width: 1,
         fg: this.attrs.fg,
         bg: this.attrs.bg,
         bold: this.attrs.bold,
@@ -243,7 +215,6 @@ export class Terminal implements ParserActions {
     }
   }
 
-  /** C0/C1 control codes. */
   execute(code: number): void {
     switch (code) {
       case 0x07: /* BEL */ break;
@@ -256,7 +227,7 @@ export class Terminal implements ParserActions {
       case 0x0a: /* LF */
       case 0x0b: /* VT */
       case 0x0c: /* FF */
-        this.lineFeed(false);
+        this.lineFeed();
         break;
       case 0x0d: /* CR */
         this.curCol = 0;
@@ -265,7 +236,6 @@ export class Terminal implements ParserActions {
     }
   }
 
-  /** ESC dispatch. */
   escDispatch(intermediate: string, final: number): void {
     if (intermediate === '') {
       switch (String.fromCharCode(final)) {
@@ -287,12 +257,10 @@ export class Terminal implements ParserActions {
     }
   }
 
-  /** CSI dispatch. */
   csiDispatch(params: number[], intermediate: string, final: number): void {
     const p = (n: number, def = 0) => (params[n] !== undefined && params[n]! > 0 ? params[n]! : def);
 
     switch (String.fromCharCode(final)) {
-      // ── Cursor movement ──────────────────────────────────────────────────
       case 'A': /* CUU */ this.curRow = Math.max(this.scrollTop, this.curRow - p(0, 1)); break;
       case 'B': /* CUD */ this.curRow = Math.min(this.scrollBottom, this.curRow + p(0, 1)); break;
       case 'C': /* CUF */ this.curCol = Math.min(this.cols - 1, this.curCol + p(0, 1)); break;
@@ -309,7 +277,6 @@ export class Terminal implements ParserActions {
       }
       case 'd': /* VPA */ this.curRow = clamp(p(0, 1) - 1, 0, this.rows - 1); break;
 
-      // ── Erase ────────────────────────────────────────────────────────────
       case 'J': /* ED */ this.eraseDisplay(p(0, 0)); break;
       case 'K': /* EL */ this.eraseLine(p(0, 0)); break;
       case 'X': /* ECH */ {
@@ -321,21 +288,18 @@ export class Terminal implements ParserActions {
         break;
       }
 
-      // ── Insert / delete ──────────────────────────────────────────────────
-      case 'L': /* IL — insert lines */ this.insertLines(p(0, 1)); break;
-      case 'M': /* DL — delete lines */ this.deleteLines(p(0, 1)); break;
-      case 'P': /* DCH — delete characters */ this.deleteChars(p(0, 1)); break;
-      case '@': /* ICH — insert characters */ this.insertChars(p(0, 1)); break;
+      case 'L': /* IL */ this.insertLines(p(0, 1)); break;
+      case 'M': /* DL */ this.deleteLines(p(0, 1)); break;
+      case 'P': /* DCH */ this.deleteChars(p(0, 1)); break;
+      case '@': /* ICH */ this.insertChars(p(0, 1)); break;
 
-      // ── Scrolling ────────────────────────────────────────────────────────
-      case 'S': /* SU — scroll up */
+      case 'S': /* SU */
         for (let i = 0; i < p(0, 1); i++) this.scrollUp();
         break;
-      case 'T': /* SD — scroll down */
+      case 'T': /* SD */
         for (let i = 0; i < p(0, 1); i++) this.scrollDown();
         break;
 
-      // ── Scroll region ────────────────────────────────────────────────────
       case 'r': /* DECSTBM */ {
         const top = clamp(p(0, 1) - 1, 0, this.rows - 1);
         const bot = clamp(p(1, this.rows) - 1, 0, this.rows - 1);
@@ -348,19 +312,15 @@ export class Terminal implements ParserActions {
         break;
       }
 
-      // ── SGR ──────────────────────────────────────────────────────────────
       case 'm': /* SGR */ this.applySgr(params.length === 0 ? [0] : params); break;
 
-      // ── Cursor visibility / shape ─────────────────────────────────────────
       case 'h': this.setMode(this.getRawParam(), true); break;
       case 'l': this.setMode(this.getRawParam(), false); break;
 
-      // ── Save / restore cursor ─────────────────────────────────────────────
       case 's': this.saveCursor(); break;
       case 'u': this.restoreCursor(); break;
 
-      // ── Cursor style (DECSCUSR) ───────────────────────────────────────────
-      case 'q': {
+      case 'q': /* DECSCUSR */ {
         if (intermediate === ' ') {
           const n = p(0, 0);
           if (n === 0 || n === 1 || n === 2) this.curShape = 'block';
@@ -376,9 +336,7 @@ export class Terminal implements ParserActions {
   private _rawParamBuf = '';
   getRawParam(): string { return this._rawParamBuf; }
 
-  /** OSC dispatch. */
   oscDispatch(raw: string): void {
-    // OSC 0 or 2: set window title
     const semi = raw.indexOf(';');
     if (semi === -1) return;
     const cmd = raw.slice(0, semi);
@@ -388,8 +346,6 @@ export class Terminal implements ParserActions {
       if (this._clearFlag) this._clearFlag.title = value;
     }
   }
-
-  // ── Private grid helpers ────────────────────────────────────────────────
 
   private getCursor(): TerminalCursor {
     return {
@@ -404,7 +360,7 @@ export class Terminal implements ParserActions {
     this.dirtySet.add(row);
   }
 
-  private lineFeed(fromWrap: boolean): void {
+  private lineFeed(): void {
     if (this.curRow === this.scrollBottom) {
       this.scrollUp();
     } else {
@@ -421,11 +377,9 @@ export class Terminal implements ParserActions {
   }
 
   private scrollUp(): void {
-    // Remove top row of scroll region, insert blank at bottom
     const removed = this.grid.splice(this.scrollTop, 1)[0];
     if (removed) {
-      // Save to scrollback when the full viewport scrolls (not a sub-region scroll)
-      // and only on the main screen — alternate screen manages its own display.
+      // Only push to scrollback on main screen full-viewport scrolls; alternate screen manages its own display
       if (!this.altScreenActive && this.scrollTop === 0) {
         const savedRow = [...removed];
         this.scrollback.push(savedRow);
@@ -441,7 +395,6 @@ export class Terminal implements ParserActions {
   }
 
   private scrollDown(): void {
-    // Remove bottom row of scroll region, insert blank at top
     const removed = this.grid.splice(this.scrollBottom, 1)[0];
     if (removed) {
       for (let c = 0; c < this.cols; c++) removed[c] = makeCell();
@@ -456,15 +409,12 @@ export class Terminal implements ParserActions {
       this.markDirty(r);
     };
     if (mode === 0) {
-      // Erase from cursor to end
       this.eraseLine(0);
       for (let r = this.curRow + 1; r < this.rows; r++) clearRow(r);
     } else if (mode === 1) {
-      // Erase from start to cursor
       for (let r = 0; r < this.curRow; r++) clearRow(r);
       this.eraseLine(1);
     } else if (mode === 2 || mode === 3) {
-      // Erase all
       for (let r = 0; r < this.rows; r++) clearRow(r);
       if (this._clearFlag) this._clearFlag.cleared = true;
     }
@@ -515,8 +465,6 @@ export class Terminal implements ParserActions {
     this.markDirty(this.curRow);
   }
 
-  // ── SGR (colour + style) ─────────────────────────────────────────────────
-
   private applySgr(params: number[]): void {
     let i = 0;
     while (i < params.length) {
@@ -538,22 +486,16 @@ export class Terminal implements ParserActions {
       else if (n === 27) { this.attrs.inverse = false; }
       else if (n === 28) { this.attrs.invisible = false; }
       else if (n === 29) { this.attrs.strikethrough = false; }
-      // Standard 8 fg colours
       else if (n >= 30 && n <= 37) { this.attrs.fg = { kind: 'palette', index: n - 30 }; }
       else if (n === 39) { this.attrs.fg = DEFAULT_FG; }
-      // Standard 8 bg colours
       else if (n >= 40 && n <= 47) { this.attrs.bg = { kind: 'palette', index: n - 40 }; }
       else if (n === 49) { this.attrs.bg = DEFAULT_BG; }
-      // Bright fg
       else if (n >= 90 && n <= 97) { this.attrs.fg = { kind: 'palette', index: n - 90 + 8 }; }
-      // Bright bg
       else if (n >= 100 && n <= 107) { this.attrs.bg = { kind: 'palette', index: n - 100 + 8 }; }
-      // 256-colour or RGB fg
       else if (n === 38) {
         const color = this.parseSgrColor(params, i + 1);
         if (color) { this.attrs.fg = color.color; i += color.consumed; }
       }
-      // 256-colour or RGB bg
       else if (n === 48) {
         const color = this.parseSgrColor(params, i + 1);
         if (color) { this.attrs.bg = color.color; i += color.consumed; }
@@ -584,8 +526,6 @@ export class Terminal implements ParserActions {
     return null;
   }
 
-  // ── Mode handling ────────────────────────────────────────────────────────
-
   private setMode(rawParam: string, on: boolean): void {
     const isPrivate = rawParam.startsWith('?');
     const nums = rawParam.replace('?', '').split(';').map(Number);
@@ -613,7 +553,6 @@ export class Terminal implements ParserActions {
     if (toAlt && !this.altScreenActive) {
       this.altScreenActive = true;
       this.altSavedCursor = { row: this.curRow, col: this.curCol, attrs: { ...this.attrs } };
-      // Swap grids
       [this.grid, this.altGrid] = [this.altGrid, this.grid];
       this.curRow = 0; this.curCol = 0;
       this.eraseDisplay(2);
@@ -629,8 +568,6 @@ export class Terminal implements ParserActions {
     }
   }
 
-  // ── Cursor save/restore ──────────────────────────────────────────────────
-
   private saveCursor(): void {
     this.savedCursor = { row: this.curRow, col: this.curCol, attrs: { ...this.attrs } };
   }
@@ -642,8 +579,6 @@ export class Terminal implements ParserActions {
       this.attrs = this.savedCursor.attrs;
     }
   }
-
-  // ── Full reset ───────────────────────────────────────────────────────────
 
   private fullReset(): void {
     this.curRow = 0; this.curCol = 0;
