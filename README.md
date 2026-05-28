@@ -14,11 +14,8 @@ A mobile SSH terminal for Android (and eventually iOS) built with Expo. Connect 
 
 - **SSH connections** — password, public-key (RSA, Ed25519, ECDSA, OpenSSH format), and browser-based (Tailscale / keyboard-interactive URL) authentication
 - **Multi-session** — open multiple SSH sessions simultaneously; each runs independently in the background
-- **Session persistence** — navigate away without disconnecting; resume any session from the Sessions tab
-- **Background keepalive** — foreground service + CPU and Wi-Fi locks keep sessions alive when the screen is off or the app is backgrounded
 - **Terminal emulator** — VT100/VT220/xterm-256color state machine with SGR colours, alternate screen, scroll regions, and UTF-8
 - **Skia renderer** — hardware-accelerated canvas via `@shopify/react-native-skia`; dirty-row diffing so only changed lines repaint
-- **Scrollback** — swipe down to scroll into terminal history, swipe up to return to the live view
 - **Network scan** — auto-discovers SSH hosts on your local `/24` subnet with OS detection from SSH banners
 - **Encrypted storage** — profiles and private keys encrypted at rest using the OS keychain (`expo-secure-store`) and AES via `expo-crypto`
 - **SSH key management** — import PEM keys by file picker or paste; keys stored encrypted in the app's document directory
