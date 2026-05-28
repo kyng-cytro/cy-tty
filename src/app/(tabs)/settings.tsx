@@ -454,7 +454,7 @@ function BackupSection() {
   const confirmRef = useRef('');
   const [showPassword, setShowPassword] = useState(false);
   const [passwordError, setPasswordError] = useState('');
-  const [dialogKey, setDialogKey] = useState(0);
+  const [inputResetKey, setInputResetKey] = useState(0);
 
   const closeDialog = useCallback(() => {
     setDialogIntent(null);
@@ -462,11 +462,7 @@ function BackupSection() {
     confirmRef.current = '';
     setShowPassword(false);
     setPasswordError('');
-    setDialogKey((k) => k + 1);
-  }, []);
-
-  const handleExport = useCallback(() => {
-    setDialogIntent('export');
+    setInputResetKey((k) => k + 1);
   }, []);
 
   const handleImport = useCallback(async () => {
@@ -546,7 +542,7 @@ function BackupSection() {
 
       <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
         <TouchableOpacity
-          onPress={handleExport}
+          onPress={() => setDialogIntent('export')}
           disabled={exportBusy}
           activeOpacity={0.7}
           style={styles.backupRow}
@@ -606,7 +602,7 @@ function BackupSection() {
                 : 'Enter the password you set when exporting.'}
             </Text>
             <TextInput
-              key={`pw-${dialogKey}`}
+              key={`pw-${inputResetKey}`}
               mode="outlined"
               label="Password"
               defaultValue=""
@@ -623,7 +619,7 @@ function BackupSection() {
             />
             {isExport && (
               <TextInput
-                key={`cf-${dialogKey}`}
+                key={`cf-${inputResetKey}`}
                 mode="outlined"
                 label="Confirm password"
                 defaultValue=""
