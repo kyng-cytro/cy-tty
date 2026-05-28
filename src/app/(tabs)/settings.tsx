@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
   ScrollView,
@@ -441,7 +442,8 @@ function TerminalSection() {
 
 function BackupSection() {
   const theme = useTheme();
-  const [busy, setBusy] = useState(false);
+  const [exportBusy, setExportBusy] = useState(false);
+  const [importBusy, setImportBusy] = useState(false);
 
   const handleExport = useCallback(() => {
     Alert.prompt?.(
@@ -452,13 +454,13 @@ function BackupSection() {
           Alert.alert('Weak password', 'Password must be at least 6 characters.');
           return;
         }
-        setBusy(true);
+        setExportBusy(true);
         try {
           await exportBackup(password);
         } catch (e) {
           Alert.alert('Export failed', e instanceof Error ? e.message : 'Unknown error');
         } finally {
-          setBusy(false);
+          setExportBusy(false);
         }
       },
       'secure-text',
@@ -487,14 +489,14 @@ function BackupSection() {
               'Enter the password you set when exporting.',
               async (password) => {
                 if (!password) return;
-                setBusy(true);
+                setImportBusy(true);
                 try {
                   await importBackup(fileUri, password);
                   Alert.alert('Restored', 'Backup restored successfully. Restart the app to see all changes.');
                 } catch (e) {
                   Alert.alert('Restore failed', e instanceof Error ? e.message : 'Unknown error');
                 } finally {
-                  setBusy(false);
+                  setImportBusy(false);
                 }
               },
               'secure-text',
@@ -515,7 +517,12 @@ function BackupSection() {
       </Text>
 
       <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-        <View style={styles.itemRow}>
+        <TouchableOpacity
+          onPress={handleExport}
+          disabled={exportBusy}
+          activeOpacity={0.7}
+          style={styles.backupRow}
+        >
           <MaterialCommunityIcons
             name="export-variant"
             size={22}
@@ -528,20 +535,20 @@ function BackupSection() {
               Save all profiles, keys and settings to an encrypted file
             </Text>
           </View>
-          <Button
-            mode="text"
-            compact
-            loading={busy}
-            onPress={handleExport}
-            textColor={theme.colors.primary}
-          >
-            Export
-          </Button>
-        </View>
+          {exportBusy
+            ? <ActivityIndicator size={18} color={theme.colors.primary} />
+            : <MaterialCommunityIcons name="chevron-right" size={20} color={theme.colors.onSurfaceVariant} />
+          }
+        </TouchableOpacity>
 
         <Divider />
 
-        <View style={styles.itemRow}>
+        <TouchableOpacity
+          onPress={handleImport}
+          disabled={importBusy}
+          activeOpacity={0.7}
+          style={styles.backupRow}
+        >
           <MaterialCommunityIcons
             name="import"
             size={22}
@@ -554,16 +561,11 @@ function BackupSection() {
               Restore from a .cytty backup file — replaces all current data
             </Text>
           </View>
-          <Button
-            mode="text"
-            compact
-            loading={busy}
-            onPress={handleImport}
-            textColor={theme.colors.primary}
-          >
-            Import
-          </Button>
-        </View>
+          {importBusy
+            ? <ActivityIndicator size={18} color={theme.colors.primary} />
+            : <MaterialCommunityIcons name="chevron-right" size={20} color={theme.colors.onSurfaceVariant} />
+          }
+        </TouchableOpacity>
       </Card>
     </View>
   );
@@ -639,6 +641,13 @@ const styles = StyleSheet.create({
   itemAction: {
     margin: 0,
     marginRight: 0,
+  },
+  backupRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 12,
   },
   settingRow: {
     flexDirection: 'row',

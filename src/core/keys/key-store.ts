@@ -39,10 +39,7 @@ async function writeMeta(meta: KeyMeta[]): Promise<void> {
   await SecureStore.setItemAsync(META_KEY, JSON.stringify(meta));
 }
 
-// Simple XOR-based obfuscation using the stored key bytes.
-// expo-crypto does not expose AES-GCM for arbitrary buffers in JS;
-// we use digest-based key derivation + XOR as a practical alternative
-// until a native AES module is available.
+// expo-crypto lacks AES-GCM for arbitrary buffers; XOR with a per-key secret is the current stand-in.
 async function encrypt(plaintext: string, keyHex: string): Promise<string> {
   const encoder = new TextEncoder();
   const plainBytes = encoder.encode(plaintext);
@@ -89,10 +86,6 @@ function base64ToBytes(b64: string): Uint8Array {
 const PEM_HEADER = /-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----/;
 const PEM_FOOTER = /-----END (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----/;
 
-/**
- * Returns null if `text` looks like a valid PEM private key, or an error
- * string describing why it is not.
- */
 export function validatePem(text: string): string | null {
   const t = text.trim();
   if (!PEM_HEADER.test(t)) {

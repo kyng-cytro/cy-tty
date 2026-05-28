@@ -116,10 +116,6 @@ export const ConnectionSheet = forwardRef<
     if (authMethod === "key") void loadKeys();
   }, [authMethod, loadKeys]);
 
-  const handleAuthMethodChange = useCallback((method: AuthMethod) => {
-    setAuthMethod(method);
-  }, []);
-
   const handlePickFile = useCallback(async () => {
     const result = await DocumentPicker.getDocumentAsync({
       type: ["text/plain", "application/x-pem-file", "application/octet-stream"],
@@ -313,7 +309,7 @@ export const ConnectionSheet = forwardRef<
           </Text>
           <SegmentedButtons
             value={authMethod}
-            onValueChange={(v) => handleAuthMethodChange(v as AuthMethod)}
+            onValueChange={(v) => setAuthMethod(v as AuthMethod)}
             style={styles.segmented}
             buttons={[
               { value: "none", label: "None", icon: "minus-circle-outline" },
@@ -540,7 +536,6 @@ const styles = StyleSheet.create({
   },
   input: { marginBottom: 0 },
   segmented: { marginBottom: 8 },
-  chip: { flexShrink: 1 },
   keySection: { gap: 8 },
   keyRow: {
     flexDirection: "row",
