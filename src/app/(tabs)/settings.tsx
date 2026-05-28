@@ -14,10 +14,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Button,
   Card,
+  Dialog,
   Divider,
   IconButton,
+  Portal,
   Switch,
   Text,
+  TextInput,
   useTheme,
 } from 'react-native-paper';
 import { useSshUrlSettings } from '@/core/security/ssh-url-settings-context';
@@ -440,31 +443,26 @@ function TerminalSection() {
   );
 }
 
+type PasswordDialogIntent = 'export' | { fileUri: string };
+
 function BackupSection() {
   const theme = useTheme();
   const [exportBusy, setExportBusy] = useState(false);
   const [importBusy, setImportBusy] = useState(false);
+  const [dialogIntent, setDialogIntent] = useState<PasswordDialogIntent | null>(null);
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+
+  const closeDialog = useCallback(() => {
+    setDialogIntent(null);
+    setPassword('');
+    setShowPassword(false);
+    setPasswordError('');
+  }, []);
 
   const handleExport = useCallback(() => {
-    Alert.prompt?.(
-      'Set backup password',
-      'This password encrypts your backup. You will need it to restore.',
-      async (password) => {
-        if (!password || password.length < 6) {
-          Alert.alert('Weak password', 'Password must be at least 6 characters.');
-          return;
-        }
-        setExportBusy(true);
-        try {
-          await exportBackup(password);
-        } catch (e) {
-          Alert.alert('Export failed', e instanceof Error ? e.message : 'Unknown error');
-        } finally {
-          setExportBusy(false);
-        }
-      },
-      'secure-text',
-    ) ?? Alert.alert('Not supported', 'Password prompts are not supported on this platform yet.');
+    setDialogIntent('export');
   }, []);
 
   const handleImport = useCallback(async () => {
@@ -473,7 +471,6 @@ function BackupSection() {
       copyToCacheDirectory: true,
     });
     if (result.canceled || !result.assets?.[0]) return;
-    const fileUri = result.assets[0].uri;
 
     Alert.alert(
       'Restore backup',
@@ -483,29 +480,49 @@ function BackupSection() {
         {
           text: 'Restore',
           style: 'destructive',
-          onPress: () => {
-            Alert.prompt?.(
-              'Enter backup password',
-              'Enter the password you set when exporting.',
-              async (password) => {
-                if (!password) return;
-                setImportBusy(true);
-                try {
-                  await importBackup(fileUri, password);
-                  Alert.alert('Restored', 'Backup restored successfully. Restart the app to see all changes.');
-                } catch (e) {
-                  Alert.alert('Restore failed', e instanceof Error ? e.message : 'Unknown error');
-                } finally {
-                  setImportBusy(false);
-                }
-              },
-              'secure-text',
-            ) ?? Alert.alert('Not supported', 'Password prompts are not supported on this platform yet.');
-          },
+          onPress: () => setDialogIntent({ fileUri: result.assets![0].uri }),
         },
       ],
     );
   }, []);
+
+  const handleConfirm = useCallback(async () => {
+    if (!dialogIntent) return;
+
+    if (dialogIntent === 'export') {
+      if (password.length < 6) {
+        setPasswordError('Password must be at least 6 characters.');
+        return;
+      }
+      closeDialog();
+      setExportBusy(true);
+      try {
+        await exportBackup(password);
+      } catch (e) {
+        Alert.alert('Export failed', e instanceof Error ? e.message : 'Unknown error');
+      } finally {
+        setExportBusy(false);
+      }
+    } else {
+      if (!password) {
+        setPasswordError('Password is required.');
+        return;
+      }
+      const { fileUri } = dialogIntent;
+      closeDialog();
+      setImportBusy(true);
+      try {
+        await importBackup(fileUri, password);
+        Alert.alert('Restored', 'Backup restored successfully. Restart the app to see all changes.');
+      } catch (e) {
+        Alert.alert('Restore failed', e instanceof Error ? e.message : 'Unknown error');
+      } finally {
+        setImportBusy(false);
+      }
+    }
+  }, [dialogIntent, password, closeDialog]);
+
+  const isExport = dialogIntent === 'export';
 
   return (
     <View style={styles.section}>
@@ -567,6 +584,43 @@ function BackupSection() {
           }
         </TouchableOpacity>
       </Card>
+
+      <Portal>
+        <Dialog visible={dialogIntent !== null} onDismiss={closeDialog}>
+          <Dialog.Title>{isExport ? 'Set backup password' : 'Enter backup password'}</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium" style={{ marginBottom: 12, color: theme.colors.onSurfaceVariant }}>
+              {isExport
+                ? 'This password encrypts your backup. You will need it to restore.'
+                : 'Enter the password you set when exporting.'}
+            </Text>
+            <TextInput
+              mode="outlined"
+              label="Password"
+              value={password}
+              onChangeText={(t) => { setPassword(t); setPasswordError(''); }}
+              secureTextEntry={!showPassword}
+              autoFocus
+              error={!!passwordError}
+              right={
+                <TextInput.Icon
+                  icon={showPassword ? 'eye-off' : 'eye'}
+                  onPress={() => setShowPassword((v) => !v)}
+                />
+              }
+            />
+            {!!passwordError && (
+              <Text variant="labelSmall" style={{ color: theme.colors.error, marginTop: 4 }}>
+                {passwordError}
+              </Text>
+            )}
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={closeDialog}>Cancel</Button>
+            <Button onPress={handleConfirm}>{isExport ? 'Export' : 'Restore'}</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </View>
   );
 }
