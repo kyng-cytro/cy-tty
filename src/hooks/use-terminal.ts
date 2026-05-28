@@ -1,6 +1,6 @@
 import { GhosttyVt } from 'expo-ghostty-vt';
 import type { TerminalDelta, TerminalHandle, TerminalState } from 'expo-ghostty-vt';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { applyDelta, createEmptyState } from '@/core/terminal/grid';
 
@@ -10,23 +10,19 @@ export interface UseTerminalOptions {
 }
 
 export interface UseTerminalResult {
-  handle: TerminalHandle | null;
   state: TerminalState;
-  dirtyRowsRef: React.RefObject<number[]>;
   processBytes: (data: string) => void;
 }
 
 export function useTerminal({ cols, rows }: UseTerminalOptions): UseTerminalResult {
   const [handle, setHandle] = useState<TerminalHandle | null>(null);
   const [state, setState] = useState<TerminalState>(() => createEmptyState(cols, rows));
-  const dirtyRowsRef = useRef<number[]>([]);
 
   useEffect(() => {
     const h = GhosttyVt.createTerminal(cols, rows);
     setHandle(h);
 
     const unsubscribe = GhosttyVt.onTerminalDelta(h, (delta: TerminalDelta) => {
-      dirtyRowsRef.current = delta.dirtyRows.map((r) => r.index);
       setState((prev) => applyDelta(prev, delta));
     });
 
@@ -52,5 +48,5 @@ export function useTerminal({ cols, rows }: UseTerminalOptions): UseTerminalResu
     [handle],
   );
 
-  return { handle, state, dirtyRowsRef, processBytes };
+  return { state, processBytes };
 }

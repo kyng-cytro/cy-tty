@@ -38,7 +38,6 @@ export function createEmptyState(cols: number, rows: number): TerminalState {
 const SCROLLBACK_MAX = 1000;
 
 export function applyDelta(state: TerminalState, delta: TerminalDelta): TerminalState {
-  // Append any newly scrolled-off rows to the scrollback buffer
   let scrollback = state.scrollback;
   if (delta.appendedScrollback.length > 0) {
     scrollback = [...state.scrollback, ...delta.appendedScrollback];

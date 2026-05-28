@@ -22,7 +22,6 @@ function keysDir(): string {
   return (FileSystem.documentDirectory ?? '') + 'cy-tty-keys/';
 }
 
-/** Derive a 32-byte box key from a password + base64 salt using 10 000 SHA-256 rounds. */
 async function deriveKey(password: string, saltB64: string): Promise<Uint8Array> {
   let state = password + '|' + saltB64;
   for (let i = 0; i < 10_000; i++) {
