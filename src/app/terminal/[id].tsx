@@ -1,5 +1,4 @@
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
-import * as Clipboard from "expo-clipboard";
 import { router, useLocalSearchParams } from "expo-router";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { TerminalKeyboardView } from "expo-terminal-keyboard";
@@ -28,7 +27,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { TerminalCanvas, type SelectionRange } from "@/components/terminal/terminal-canvas";
+import { TerminalCanvas } from "@/components/terminal/terminal-canvas";
 import { TerminalKeyboard } from "@/components/terminal/terminal-keyboard";
 import {
   TerminalSessionContext,
@@ -69,7 +68,6 @@ function applyModifier(data: string, mod: "ctrl" | "alt" | "shift"): string {
       case "\t":     return "\x1b[27;3;9~";
     }
   } else {
-    // shift
     switch (data) {
       case "\x1b[D": return "\x1b[1;2D";
       case "\x1b[C": return "\x1b[1;2C";
@@ -268,12 +266,7 @@ export default function TerminalScreen() {
 
   const [scrollOffset, setScrollOffset] = useState(0);
   const scrollOffsetRef = useRef(0);
-  const scrollDragRef = useRef(0);
-
-  const [selection, setSelection] = useState<SelectionRange | null>(null);
-  const selectionAnchorRef = useRef<{ row: number; col: number } | null>(null);
-  // Shared value so the pan worklet can check whether a selection is in progress
-  const hasSelectionAnchor = useSharedValue(false);
+  const scrollDrag = useSharedValue(0);
 
   const [modifier, setModifier] = useState<"ctrl" | "alt" | "shift" | null>(null);
   const modifierRef = useRef<"ctrl" | "alt" | "shift" | null>(null);
@@ -289,14 +282,10 @@ export default function TerminalScreen() {
 
   const write = useCallback(
     (data: string) => {
-      // Snap back to live view and clear selection when user types
       if (scrollOffsetRef.current !== 0) {
         scrollOffsetRef.current = 0;
         setScrollOffset(0);
       }
-      selectionAnchorRef.current = null;
-      hasSelectionAnchor.value = false;
-      setSelection(null);
       const mod = modifierRef.current;
       if (mod) {
         modifierRef.current = null;
@@ -334,21 +323,21 @@ export default function TerminalScreen() {
     return () => sub.remove();
   }, []);
 
-  const pinchStartSize = useRef(fontSize);
+  const pinchStartSize = useSharedValue(fontSize);
 
   const pinchGesture = Gesture.Pinch()
     .enabled(session?.status === "connected")
     .onStart(() => {
-      pinchStartSize.current = fontSize;
+      pinchStartSize.value = fontSize;
     })
     .onUpdate((e) => {
       const next = Math.round(
-        Math.max(9, Math.min(24, pinchStartSize.current * e.scale)),
+        Math.max(9, Math.min(24, pinchStartSize.value * e.scale)),
       );
       runOnJS(setFontSize)(next);
     });
 
-  const cellHeightRef = useRef(fontSize + 4);
+  const cellHeight = useSharedValue(fontSize + 4);
 
   const updateScrollOffset = useCallback(
     (delta: number) => {
@@ -363,105 +352,18 @@ export default function TerminalScreen() {
     [session],
   );
 
-  const cellWidthRef = useRef(fontSize * 0.6);
-
-  const copySelection = useCallback(() => {
-    if (!selection || !session) return;
-    const { scrollback, grid, cols } = session.terminalState;
-    const combined = [...scrollback, ...grid];
-    const end = Math.max(0, combined.length - scrollOffsetRef.current);
-    const start = Math.max(0, end - session.rows);
-    const displayGrid = combined.slice(start, end);
-
-    const r0 = selection.startRow;
-    const c0 = selection.startCol;
-    const r1 = selection.endRow;
-    const c1 = selection.endCol;
-    const [sr, sc, er, ec] =
-      r0 < r1 || (r0 === r1 && c0 <= c1)
-        ? [r0, c0, r1, c1]
-        : [r1, c1, r0, c0];
-
-    const lines: string[] = [];
-    for (let r = sr; r <= er; r++) {
-      const row = displayGrid[r];
-      if (!row) continue;
-      const startC = r === sr ? sc : 0;
-      const endC = r === er ? ec + 1 : cols;
-      const text = row
-        .slice(startC, endC)
-        .map((cell) => cell.char || " ")
-        .join("")
-        .trimEnd();
-      lines.push(text);
-    }
-    Clipboard.setStringAsync(lines.join("\n")).catch(() => {});
-    selectionAnchorRef.current = null;
-    hasSelectionAnchor.value = false;
-    setSelection(null);
-  }, [selection, session, hasSelectionAnchor]);
-
-  const sessionCols = session?.cols ?? 80;
-  const sessionRows = session?.rows ?? 24;
-
-  const startSelectionAt = useCallback(
-    (x: number, y: number) => {
-      const cw = cellWidthRef.current;
-      const ch = cellHeightRef.current;
-      if (cw === 0 || ch === 0) return;
-      const col = Math.max(0, Math.min(sessionCols - 1, Math.floor(x / cw)));
-      const row = Math.max(0, Math.min(sessionRows - 1, Math.floor(y / ch)));
-      selectionAnchorRef.current = { row, col };
-      hasSelectionAnchor.value = true;
-      setSelection({ startRow: row, startCol: col, endRow: row, endCol: col });
-    },
-    [sessionCols, sessionRows],
-  );
-
-  const extendSelectionTo = useCallback(
-    (x: number, y: number) => {
-      const anchor = selectionAnchorRef.current;
-      if (!anchor) return;
-      const cw = cellWidthRef.current;
-      const ch = cellHeightRef.current;
-      if (cw === 0 || ch === 0) return;
-      const col = Math.max(0, Math.min(sessionCols - 1, Math.floor(x / cw)));
-      const row = Math.max(0, Math.min(sessionRows - 1, Math.floor(y / ch)));
-      setSelection({
-        startRow: anchor.row,
-        startCol: anchor.col,
-        endRow: row,
-        endCol: col,
-      });
-    },
-    [sessionCols, sessionRows],
-  );
-
-  const longPressGesture = Gesture.LongPress()
-    .enabled(session?.status === "connected")
-    .minDuration(400)
-    .onStart((e) => {
-      runOnJS(startSelectionAt)(e.x, e.y);
-    });
-
   const panGesture = Gesture.Pan()
     .enabled(session?.status === "connected")
     .activeOffsetY([-8, 8])
-    .failOffsetX([-20, 20])
     .onBegin(() => {
-      scrollDragRef.current = 0;
+      scrollDrag.value = 0;
     })
     .onUpdate((e) => {
-      // If a selection anchor exists, extend selection instead of scrolling
-      if (hasSelectionAnchor.value) {
-        runOnJS(extendSelectionTo)(e.x, e.y);
-        return;
-      }
       const rowDelta = Math.trunc(
-        (scrollDragRef.current - e.translationY) / cellHeightRef.current,
+        (e.translationY - scrollDrag.value) / cellHeight.value,
       );
       if (rowDelta !== 0) {
-        scrollDragRef.current = e.translationY + rowDelta * cellHeightRef.current;
+        scrollDrag.value = scrollDrag.value + rowDelta * cellHeight.value;
         runOnJS(updateScrollOffset)(rowDelta);
       }
     });
@@ -573,7 +475,7 @@ export default function TerminalScreen() {
           style={styles.flex}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          <GestureDetector gesture={Gesture.Exclusive(longPressGesture, Gesture.Simultaneous(pinchGesture, panGesture))}>
+          <GestureDetector gesture={Gesture.Simultaneous(pinchGesture, panGesture)}>
             <Pressable
               style={styles.flex}
               onPress={() => {
@@ -584,10 +486,8 @@ export default function TerminalScreen() {
               <TerminalCanvas
                 state={session.terminalState}
                 scrollOffset={scrollOffset}
-                selection={selection}
                 onCellSize={(cw, ch) => {
-                  cellWidthRef.current = cw;
-                  cellHeightRef.current = ch;
+                  cellHeight.value = ch;
                   session.resize(cw, ch);
                 }}
                 style={[styles.flex, styles.canvasPadding]}
@@ -601,30 +501,6 @@ export default function TerminalScreen() {
           />
 
           <TerminalKeyboard />
-          {selection && (
-            <View style={styles.copyBar} pointerEvents="box-none">
-              <Button
-                mode="contained"
-                compact
-                onPress={copySelection}
-                style={styles.copyBtn}
-              >
-                Copy
-              </Button>
-              <Button
-                mode="outlined"
-                compact
-                onPress={() => {
-                  selectionAnchorRef.current = null;
-                  hasSelectionAnchor.value = false;
-                  setSelection(null);
-                }}
-                style={styles.copyBtn}
-              >
-                Cancel
-              </Button>
-            </View>
-          )}
           <StatusOverlay onExit={handleExit} />
           <FloatingHeader label={label} opacity={headerOpacity} />
         </KeyboardAvoidingView>
@@ -662,17 +538,6 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: 16,
   },
-  copyBar: {
-    position: "absolute",
-    bottom: 56,
-    left: 0,
-    right: 0,
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 8,
-    pointerEvents: "box-none",
-  },
-  copyBtn: { minWidth: 80 },
   floatingHeader: {
     position: "absolute",
     top: 0,

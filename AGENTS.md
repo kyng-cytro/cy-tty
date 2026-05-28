@@ -23,6 +23,8 @@ Two custom native modules live in `modules/`:
 
 Both are autolinked via `package.json` workspace entries. After editing native code, run `bunx expo run:android` (or `ios`) for a full rebuild — Metro alone is not enough.
 
+`expo-ssh` on Android acquires a `PowerManager.PARTIAL_WAKE_LOCK` and a `WifiManager.WifiLock(WIFI_MODE_FULL_HIGH_PERF)` for every active session and starts a `SshForegroundService` (visible notification, `dataSync` type) to prevent Android from throttling the process when backgrounded. All three are released when the session closes.
+
 When updating `modules/expo-ssh/src/`, also sync the changed files to `node_modules/expo-ssh/src/` so TypeScript picks up the new types without a full reinstall:
 
 ```bash
@@ -60,8 +62,10 @@ Sessions are keyed by a string `sessionId` (`session_<timestamp>_<n>`). All nati
 | `src/core/network/scanner.ts` | TCP port-22 subnet scan with SSH banner grab |
 | `src/hooks/use-ssh-session.ts` | SSH lifecycle hook — connects on mount, filters events by sessionId |
 | `src/hooks/use-terminal.ts` | GhosttyVt lifecycle; returns `state` + `processBytes` |
+| `src/utils/haptics.ts` | Shared `tapHaptic()` — single call site for light impact feedback |
 | `modules/expo-ghostty-vt/src/parser.ts` | Paul Williams DEC-compatible VT state machine |
 | `modules/expo-ghostty-vt/src/terminal.ts` | Grid, cursor, SGR, alternate screen, dirty tracking |
+| `modules/expo-ssh/android/src/main/java/expo/modules/ssh/SshForegroundService.kt` | Android foreground service that keeps sessions alive in background |
 
 ## Code style
 
