@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  DevSettings,
   FlatList,
   ScrollView,
   StyleSheet,
@@ -27,6 +28,7 @@ import { useSshUrlSettings } from '@/core/security/ssh-url-settings-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as Updates from 'expo-updates';
 import { exportBackup, importBackup } from '@/core/backup/backup';
 
 import { KeyStore, validatePem, type KeyMeta } from '@/core/keys/key-store';
@@ -519,7 +521,11 @@ function BackupSection() {
       setImportBusy(true);
       try {
         await importBackup(fileUri, pw);
-        Alert.alert('Restored', 'Backup restored successfully. Restart the app to see all changes.');
+        Alert.alert(
+          'Restored',
+          'Backup restored successfully.',
+          [{ text: 'Restart', onPress: () => { __DEV__ ? DevSettings.reload() : void Updates.reloadAsync(); } }],
+        );
       } catch (e) {
         Alert.alert('Restore failed', e instanceof Error ? e.message : 'Unknown error');
       } finally {
