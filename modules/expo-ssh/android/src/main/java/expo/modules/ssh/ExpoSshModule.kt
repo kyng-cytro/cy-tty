@@ -232,15 +232,19 @@ class ExpoSshModule : Module() {
 
   private fun startReading(inStream: InputStream, sessionId: String, state: SshSessionState) {
     val ctx = appContext.reactContext
-    val pm = ctx?.getSystemService(Context.POWER_SERVICE) as? PowerManager
-    val wl = pm?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "cy-tty:ssh:$sessionId")
-    wl?.acquire(4 * 60 * 60 * 1_000L) // 4-hour safety cap
+    val wl = try {
+      val pm = ctx?.getSystemService(Context.POWER_SERVICE) as? PowerManager
+      pm?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "cy-tty:ssh:$sessionId")
+        ?.also { it.acquire(4 * 60 * 60 * 1_000L) }
+    } catch (_: Exception) { null }
     state.wakeLock = wl
 
     @Suppress("DEPRECATION")
-    val wifiLock = (ctx?.getSystemService(Context.WIFI_SERVICE) as? WifiManager)
-      ?.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "cy-tty:wifi:$sessionId")
-    wifiLock?.acquire()
+    val wifiLock = try {
+      (ctx?.getSystemService(Context.WIFI_SERVICE) as? WifiManager)
+        ?.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "cy-tty:wifi:$sessionId")
+        ?.also { it.acquire() }
+    } catch (_: Exception) { null }
     state.wifiLock = wifiLock
 
     val thread = Thread {
