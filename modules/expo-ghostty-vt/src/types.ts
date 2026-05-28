@@ -50,6 +50,8 @@ export interface TerminalCursor {
 
 export interface TerminalState {
   grid: TerminalCell[][];
+  /** Lines that have scrolled off the top of the main screen (oldest first). */
+  scrollback: TerminalCell[][];
   cursor: TerminalCursor;
   cols: number;
   rows: number;
@@ -79,6 +81,8 @@ export interface TerminalDelta {
   cleared: boolean;
   /** Non-null when the terminal title changed (OSC 0/2). */
   title: string | null;
+  /** Lines newly pushed to the scrollback buffer during this processBytes call. */
+  appendedScrollback: TerminalCell[][];
 }
 
 // ── Public module API ─────────────────────────────────────────────────────

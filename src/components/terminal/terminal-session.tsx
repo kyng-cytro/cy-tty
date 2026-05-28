@@ -10,8 +10,8 @@ export interface TerminalSessionContextValue {
   rows: number;
   showKeyboard: () => void;
   hideKeyboard: () => void;
-  modifier: 'ctrl' | 'alt' | null;
-  toggleModifier: (mod: 'ctrl' | 'alt') => void;
+  modifier: 'ctrl' | 'alt' | 'shift' | null;
+  toggleModifier: (mod: 'ctrl' | 'alt' | 'shift') => void;
   pendingAuthUrl: string | null;
   approveAuth: () => void;
   denyAuth: () => void;

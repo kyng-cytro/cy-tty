@@ -81,6 +81,8 @@ SshClient.onAuthChallenge(({ sessionId, url }) => …)
 
 Android stores active sessions in a `ConcurrentHashMap<String, SshSessionState>`. Each session has its own JSch session, channel, and read thread. Events are tagged with `sessionId` so the JS side routes data correctly.
 
+**Background keepalive (Android):** when a shell opens, `ExpoSshModule` starts `SshForegroundService` (persistent notification, `foregroundServiceType=dataSync`) and acquires a `PowerManager.PARTIAL_WAKE_LOCK` + `WifiManager.WifiLock(WIFI_MODE_FULL_HIGH_PERF)` per session. JSch SSH-level keepalives run every 15 s (`setServerAliveInterval`). All locks and the service are released when every session is closed.
+
 ### `modules/expo-ghostty-vt/`
 
 Pure TypeScript implementation with an API shaped to match the planned native module:
@@ -119,7 +121,7 @@ When libghostty's public C API stabilises and the XCFramework / Android NDK buil
 | `/(tabs)/` | Connect | Network scan · recent profiles · FAB · search |
 | `/(tabs)/sessions` | Sessions | Live sessions from SessionManager; `#id` suffix to disambiguate duplicates |
 | `/(tabs)/settings` | Settings | SSH keys · terminal font/size/theme · security (auto-open URL auth toggle) |
-| `/terminal/[id]` | Terminal | Skia canvas · floating auto-hide header · keyboard toolbar |
+| `/terminal/[id]` | Terminal | Skia canvas · floating auto-hide header · scroll (swipe up/down) · keyboard toolbar (Ctrl/shift/alt + arrow keys + haptics) |
 
 ---
 
@@ -158,12 +160,14 @@ src/
 │   │   └── ssh-url-settings-context.tsx     SshUrlSettingsProvider + useSshUrlSettings hook
 │   ├── sessions/session-manager.tsx         Global session context
 │   └── theme/                               Colour themes · fonts · preferences
-└── hooks/
-    ├── use-network-scan.ts
-    ├── use-profiles.ts
-    ├── use-ssh-session.ts
-    ├── use-terminal.ts
-    └── use-terminal-size.ts
+├── hooks/
+│   ├── use-network-scan.ts
+│   ├── use-profiles.ts
+│   ├── use-ssh-session.ts
+│   ├── use-terminal.ts
+│   └── use-terminal-size.ts
+└── utils/
+    └── haptics.ts                       tapHaptic() — shared light impact feedback
 ```
 
 ---
