@@ -451,12 +451,14 @@ function BackupSection() {
   const [importBusy, setImportBusy] = useState(false);
   const [dialogIntent, setDialogIntent] = useState<PasswordDialogIntent | null>(null);
   const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [passwordError, setPasswordError] = useState('');
 
   const closeDialog = useCallback(() => {
     setDialogIntent(null);
     setPassword('');
+    setConfirm('');
     setShowPassword(false);
     setPasswordError('');
   }, []);
@@ -492,6 +494,10 @@ function BackupSection() {
     if (dialogIntent === 'export') {
       if (password.length < 6) {
         setPasswordError('Password must be at least 6 characters.');
+        return;
+      }
+      if (password !== confirm) {
+        setPasswordError('Passwords do not match.');
         return;
       }
       closeDialog();
@@ -601,7 +607,7 @@ function BackupSection() {
               onChangeText={(t) => { setPassword(t); setPasswordError(''); }}
               secureTextEntry={!showPassword}
               autoFocus
-              error={!!passwordError}
+              error={!!passwordError && !confirm}
               right={
                 <TextInput.Icon
                   icon={showPassword ? 'eye-off' : 'eye'}
@@ -609,6 +615,17 @@ function BackupSection() {
                 />
               }
             />
+            {isExport && (
+              <TextInput
+                mode="outlined"
+                label="Confirm password"
+                value={confirm}
+                onChangeText={(t) => { setConfirm(t); setPasswordError(''); }}
+                secureTextEntry={!showPassword}
+                error={!!passwordError}
+                style={{ marginTop: 8 }}
+              />
+            )}
             {!!passwordError && (
               <Text variant="labelSmall" style={{ color: theme.colors.error, marginTop: 4 }}>
                 {passwordError}
