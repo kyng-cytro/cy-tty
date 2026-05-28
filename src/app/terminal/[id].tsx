@@ -41,7 +41,7 @@ import {
   CONTENT_PADDING_TOP,
 } from "@/hooks/use-terminal-size";
 
-function applyModifier(data: string, mod: "ctrl" | "alt"): string {
+function applyModifier(data: string, mod: "ctrl" | "alt" | "shift"): string {
   if (mod === "ctrl") {
     if (data.length === 1) {
       const c = data.toLowerCase().charCodeAt(0);
@@ -52,31 +52,30 @@ function applyModifier(data: string, mod: "ctrl" | "alt"): string {
       if (data === " ") return "\x00";
     }
     switch (data) {
-      case "\x1b[D":
-        return "\x1b[1;5D";
-      case "\x1b[C":
-        return "\x1b[1;5C";
-      case "\x1b[A":
-        return "\x1b[1;5A";
-      case "\x1b[B":
-        return "\x1b[1;5B";
-      case "\t":
-        return "\x1b[27;5;9~";
+      case "\x1b[D": return "\x1b[1;5D";
+      case "\x1b[C": return "\x1b[1;5C";
+      case "\x1b[A": return "\x1b[1;5A";
+      case "\x1b[B": return "\x1b[1;5B";
+      case "\t":     return "\x1b[27;5;9~";
     }
-  } else {
+  } else if (mod === "alt") {
     if (data.length === 1) return "\x1b" + data;
     switch (data) {
-      case "\x1b[D":
-        return "\x1b[1;3D";
-      case "\x1b[C":
-        return "\x1b[1;3C";
-      case "\x1b[A":
-        return "\x1b[1;3A";
-      case "\x1b[B":
-        return "\x1b[1;3B";
-      case "\t":
-        return "\x1b[27;3;9~";
+      case "\x1b[D": return "\x1b[1;3D";
+      case "\x1b[C": return "\x1b[1;3C";
+      case "\x1b[A": return "\x1b[1;3A";
+      case "\x1b[B": return "\x1b[1;3B";
+      case "\t":     return "\x1b[27;3;9~";
     }
+  } else {
+    switch (data) {
+      case "\x1b[D": return "\x1b[1;2D";
+      case "\x1b[C": return "\x1b[1;2C";
+      case "\x1b[A": return "\x1b[1;2A";
+      case "\x1b[B": return "\x1b[1;2B";
+      case "\t":     return "\x1b[Z";
+    }
+    if (data.length === 1) return data.toUpperCase();
   }
   return data;
 }
@@ -265,11 +264,15 @@ export default function TerminalScreen() {
 
   const session = get(id ?? "");
 
-  const [modifier, setModifier] = useState<"ctrl" | "alt" | null>(null);
-  const modifierRef = useRef<"ctrl" | "alt" | null>(null);
+  const [scrollOffset, setScrollOffset] = useState(0);
+  const scrollOffsetRef = useRef(0);
+  const scrollDrag = useSharedValue(0);
+
+  const [modifier, setModifier] = useState<"ctrl" | "alt" | "shift" | null>(null);
+  const modifierRef = useRef<"ctrl" | "alt" | "shift" | null>(null);
   modifierRef.current = modifier;
 
-  const toggleModifier = useCallback((mod: "ctrl" | "alt") => {
+  const toggleModifier = useCallback((mod: "ctrl" | "alt" | "shift") => {
     setModifier((prev) => {
       const next = prev === mod ? null : mod;
       modifierRef.current = next;
@@ -279,6 +282,10 @@ export default function TerminalScreen() {
 
   const write = useCallback(
     (data: string) => {
+      if (scrollOffsetRef.current !== 0) {
+        scrollOffsetRef.current = 0;
+        setScrollOffset(0);
+      }
       const mod = modifierRef.current;
       if (mod) {
         modifierRef.current = null;
@@ -316,18 +323,49 @@ export default function TerminalScreen() {
     return () => sub.remove();
   }, []);
 
-  const pinchStartSize = useRef(fontSize);
+  const pinchStartSize = useSharedValue(fontSize);
 
   const pinchGesture = Gesture.Pinch()
     .enabled(session?.status === "connected")
     .onStart(() => {
-      pinchStartSize.current = fontSize;
+      pinchStartSize.value = fontSize;
     })
     .onUpdate((e) => {
       const next = Math.round(
-        Math.max(9, Math.min(24, pinchStartSize.current * e.scale)),
+        Math.max(9, Math.min(24, pinchStartSize.value * e.scale)),
       );
       runOnJS(setFontSize)(next);
+    });
+
+  const cellHeight = useSharedValue(fontSize + 4);
+
+  const updateScrollOffset = useCallback(
+    (delta: number) => {
+      if (!session) return;
+      const scrollbackLen = session.terminalState.scrollback.length;
+      const next = Math.max(0, Math.min(scrollbackLen, scrollOffsetRef.current + delta));
+      if (next !== scrollOffsetRef.current) {
+        scrollOffsetRef.current = next;
+        setScrollOffset(next);
+      }
+    },
+    [session],
+  );
+
+  const panGesture = Gesture.Pan()
+    .enabled(session?.status === "connected")
+    .activeOffsetY([-8, 8])
+    .onBegin(() => {
+      scrollDrag.value = 0;
+    })
+    .onUpdate((e) => {
+      const rowDelta = Math.trunc(
+        (e.translationY - scrollDrag.value) / cellHeight.value,
+      );
+      if (rowDelta !== 0) {
+        scrollDrag.value = scrollDrag.value + rowDelta * cellHeight.value;
+        runOnJS(updateScrollOffset)(rowDelta);
+      }
     });
 
   const headerOpacity = useSharedValue(1);
@@ -437,7 +475,7 @@ export default function TerminalScreen() {
           style={styles.flex}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          <GestureDetector gesture={pinchGesture}>
+          <GestureDetector gesture={Gesture.Simultaneous(pinchGesture, panGesture)}>
             <Pressable
               style={styles.flex}
               onPress={() => {
@@ -447,7 +485,11 @@ export default function TerminalScreen() {
             >
               <TerminalCanvas
                 state={session.terminalState}
-                onCellSize={session.resize}
+                scrollOffset={scrollOffset}
+                onCellSize={(cw, ch) => {
+                  cellHeight.value = ch;
+                  session.resize(cw, ch);
+                }}
                 style={[styles.flex, styles.canvasPadding]}
               />
             </Pressable>

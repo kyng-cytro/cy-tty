@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Keyboard, Pressable, StyleSheet, Text, View } from "react-native";
 import { IconButton, useTheme } from "react-native-paper";
 
+import { tapHaptic } from "@/utils/haptics";
 import { useTerminalSessionContext } from "./terminal-session";
 
 const SEND_KEYS = [
@@ -35,6 +36,7 @@ export function TerminalKeyboard() {
   }, []);
 
   const handleToggle = useCallback(() => {
+    tapHaptic();
     if (keyboardVisible) hideKeyboard();
     else showKeyboard();
   }, [keyboardVisible, showKeyboard, hideKeyboard]);
@@ -62,7 +64,7 @@ export function TerminalKeyboard() {
 
       <Pressable
         style={[styles.modKey, disabled && styles.modKeyDisabled]}
-        onPress={() => write("\x03")}
+        onPress={() => { tapHaptic(); write("\x03"); }}
         disabled={disabled}
         accessibilityLabel="Send Ctrl+C"
       >
@@ -80,7 +82,7 @@ export function TerminalKeyboard() {
         </Text>
       </Pressable>
 
-      {(["ctrl", "alt"] as const).map((mod) => (
+      {(["ctrl", "shift", "alt"] as const).map((mod) => (
         <Pressable
           key={mod}
           style={[
@@ -89,7 +91,7 @@ export function TerminalKeyboard() {
               backgroundColor: theme.colors.primaryContainer,
             },
           ]}
-          onPress={() => toggleModifier(mod)}
+          onPress={() => { tapHaptic(); toggleModifier(mod); }}
           accessibilityLabel={`${mod} modifier`}
         >
           <Text
@@ -120,7 +122,7 @@ export function TerminalKeyboard() {
             iconColor={
               disabled ? theme.colors.onSurfaceDisabled : theme.colors.onSurface
             }
-            onPress={() => write(key.data)}
+            onPress={() => { tapHaptic(); write(key.data); }}
             accessibilityLabel={key.label}
             style={styles.key}
           />

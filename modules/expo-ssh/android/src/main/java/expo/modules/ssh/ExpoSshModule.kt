@@ -1,5 +1,10 @@
 package expo.modules.ssh
 
+import android.content.Context
+import android.content.Intent
+import android.net.wifi.WifiManager
+import android.os.Build
+import android.os.PowerManager
 import com.jcraft.jsch.ChannelShell
 import com.jcraft.jsch.JSch
 import com.jcraft.jsch.Session as JSchSession
@@ -47,11 +52,37 @@ private data class SshSessionState(
   var shellChannel: ChannelShell? = null,
   var shellOutput: OutputStream? = null,
   var readThread: Thread? = null,
+  var wakeLock: PowerManager.WakeLock? = null,
+  var wifiLock: WifiManager.WifiLock? = null,
 )
 
 class ExpoSshModule : Module() {
 
   private val sessions = ConcurrentHashMap<String, SshSessionState>()
+
+  private fun startForegroundService() {
+    val ctx = appContext.reactContext ?: return
+    val intent = Intent(ctx, SshForegroundService::class.java)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      ctx.startForegroundService(intent)
+    } else {
+      ctx.startService(intent)
+    }
+  }
+
+  private fun stopForegroundServiceIfIdle() {
+    if (sessions.isNotEmpty()) return
+    val ctx = appContext.reactContext ?: return
+    ctx.stopService(Intent(ctx, SshForegroundService::class.java))
+  }
+
+  private fun configureSession(sess: JSchSession, preferredAuths: String) {
+    sess.setConfig("StrictHostKeyChecking", "no")
+    sess.setConfig("PreferredAuthentications", preferredAuths)
+    sess.setConfig("TCPKeepAlive", "yes")
+    sess.setServerAliveInterval(15_000)
+    sess.setServerAliveCountMax(6)
+  }
 
   override fun definition() = ModuleDefinition {
     Name("ExpoSsh")
@@ -64,8 +95,7 @@ class ExpoSshModule : Module() {
       val jsch = JSch()
       val sess = jsch.getSession(username, host, port)
       sess.setPassword(password)
-      sess.setConfig("StrictHostKeyChecking", "no")
-      sess.setConfig("PreferredAuthentications", "keyboard-interactive,password")
+      configureSession(sess, "keyboard-interactive,password")
       val socketFactory = AbortableSocketFactory()
       val state = SshSessionState(socketFactory = socketFactory, jschSession = sess)
       sessions[sessionId] = state
@@ -83,8 +113,7 @@ class ExpoSshModule : Module() {
       val phrase = passphrase.ifEmpty { null }?.toByteArray(Charsets.UTF_8)
       jsch.addIdentity("cy-tty-key", keyBytes, null, phrase)
       val sess = jsch.getSession(username, host, port)
-      sess.setConfig("StrictHostKeyChecking", "no")
-      sess.setConfig("PreferredAuthentications", "publickey,keyboard-interactive")
+      configureSession(sess, "publickey,keyboard-interactive")
       val socketFactory = AbortableSocketFactory()
       val state = SshSessionState(socketFactory = socketFactory, jschSession = sess)
       sessions[sessionId] = state
@@ -197,10 +226,23 @@ class ExpoSshModule : Module() {
     state.shellChannel = ch
     state.shellOutput = outStream
 
+    startForegroundService()
     startReading(inStream, sessionId, state)
   }
 
   private fun startReading(inStream: InputStream, sessionId: String, state: SshSessionState) {
+    val ctx = appContext.reactContext
+    val pm = ctx?.getSystemService(Context.POWER_SERVICE) as? PowerManager
+    val wl = pm?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "cy-tty:ssh:$sessionId")
+    wl?.acquire(4 * 60 * 60 * 1_000L) // 4-hour safety cap
+    state.wakeLock = wl
+
+    @Suppress("DEPRECATION")
+    val wifiLock = (ctx?.getSystemService(Context.WIFI_SERVICE) as? WifiManager)
+      ?.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "cy-tty:wifi:$sessionId")
+    wifiLock?.acquire()
+    state.wifiLock = wifiLock
+
     val thread = Thread {
       val buf = ByteArray(8_192)
       try {
@@ -215,7 +257,10 @@ class ExpoSshModule : Module() {
           sendEvent("onError", mapOf("sessionId" to sessionId, "message" to (e.message ?: "Read error")))
         }
       } finally {
+        try { wl?.release() } catch (_: Exception) {}
+        try { wifiLock?.release() } catch (_: Exception) {}
         sessions.remove(sessionId)
+        stopForegroundServiceIfIdle()
         sendEvent("onClose", mapOf("sessionId" to sessionId))
       }
     }
@@ -231,5 +276,8 @@ class ExpoSshModule : Module() {
     state.readThread?.interrupt()
     try { state.shellChannel?.disconnect() } catch (_: Exception) {}
     try { state.jschSession?.disconnect() } catch (_: Exception) {}
+    try { state.wakeLock?.release() } catch (_: Exception) {}
+    try { state.wifiLock?.release() } catch (_: Exception) {}
+    stopForegroundServiceIfIdle()
   }
 }

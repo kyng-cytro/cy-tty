@@ -8,7 +8,7 @@ import {
   withTiming,
 } from "react-native-reanimated";
 
-import type { TerminalState } from "@/core/terminal/types";
+import type { TerminalCell, TerminalState } from "@/core/terminal/types";
 import { useTerminalPreferences } from "@/core/theme/preferences-context";
 import { TerminalRow } from "./terminal-row";
 
@@ -21,13 +21,36 @@ const CC_BOLD = require("../../../assets/fonts/CascadiaCode-Bold.ttf");
 const HK_REG = require("../../../assets/fonts/Hack-Regular.ttf");
 const HK_BOLD = require("../../../assets/fonts/Hack-Bold.ttf");
 
-export interface TerminalCanvasProps {
+interface TerminalCanvasProps {
   state: TerminalState;
+  scrollOffset?: number;
   onCellSize?: (cellWidth: number, cellHeight: number) => void;
   style?: StyleProp<ViewStyle>;
 }
 
-export function TerminalCanvas({ state, onCellSize, style }: TerminalCanvasProps) {
+function makeEmptyRow(cols: number): TerminalCell[] {
+  return Array.from({ length: cols }, () => ({
+    char: "",
+    width: 1,
+    fg: { kind: "default" as const },
+    bg: { kind: "default" as const },
+    bold: false,
+    dim: false,
+    italic: false,
+    underline: false,
+    blink: false,
+    inverse: false,
+    invisible: false,
+    strikethrough: false,
+  }));
+}
+
+export function TerminalCanvas({
+  state,
+  scrollOffset = 0,
+  onCellSize,
+  style,
+}: TerminalCanvasProps) {
   const { resolvedTheme, font: activeFont, fontSize } = useTerminalPreferences();
 
   const jbmReg = useFont(JBM_REG, fontSize);
@@ -70,6 +93,17 @@ export function TerminalCanvas({ state, onCellSize, style }: TerminalCanvasProps
     }
   }, [cellWidth, cellHeight, onCellSize]);
 
+  // Build the display grid: when scrolled, slice from combined scrollback+grid
+  const displayGrid = useMemo(() => {
+    if (scrollOffset === 0) return state.grid;
+    const combined: TerminalCell[][] = [...state.scrollback, ...state.grid];
+    const end = Math.max(0, combined.length - scrollOffset);
+    const start = Math.max(0, end - state.rows);
+    const slice = combined.slice(start, end);
+    while (slice.length < state.rows) slice.unshift(makeEmptyRow(state.cols));
+    return slice;
+  }, [state.grid, state.scrollback, state.rows, state.cols, scrollOffset]);
+
   const bgHex = resolvedTheme.backgroundHex;
   const fgRgb = resolvedTheme.foregroundRgb;
   const bgRgb = resolvedTheme.backgroundRgb;
@@ -95,6 +129,15 @@ export function TerminalCanvas({ state, onCellSize, style }: TerminalCanvasProps
   const cursorX = state.cursor.col * cellWidth;
   const cursorY = state.cursor.row * cellHeight;
 
+  // Scroll indicator geometry
+  const totalLines = state.scrollback.length + state.rows;
+  const indicatorHeight = totalLines > state.rows
+    ? Math.max(16, (state.rows / totalLines) * canvasHeight)
+    : 0;
+  const indicatorY = totalLines > state.rows
+    ? ((state.scrollback.length - scrollOffset) / totalLines) * canvasHeight
+    : 0;
+
   if (!regularFont || cellWidth === 0) {
     return <View style={[{ backgroundColor: bgHex }, styles.loading, style]} />;
   }
@@ -104,7 +147,7 @@ export function TerminalCanvas({ state, onCellSize, style }: TerminalCanvasProps
       <Canvas style={[styles.canvas, { width: canvasWidth, height: canvasHeight }]}>
         <Rect x={0} y={0} width={canvasWidth} height={canvasHeight} color={bgHex} />
 
-        {state.grid.map((cells, rowIndex) => (
+        {displayGrid.map((cells, rowIndex) => (
           <TerminalRow
             key={rowIndex}
             cells={cells}
@@ -120,7 +163,7 @@ export function TerminalCanvas({ state, onCellSize, style }: TerminalCanvasProps
           />
         ))}
 
-        {state.cursor.visible && (
+        {scrollOffset === 0 && state.cursor.visible && (
           <Rect
             x={cursorX}
             y={cursorY}
@@ -129,6 +172,16 @@ export function TerminalCanvas({ state, onCellSize, style }: TerminalCanvasProps
             color={resolvedTheme.cursorHex}
             blendMode="difference"
             opacity={cursorOpacity}
+          />
+        )}
+
+        {scrollOffset > 0 && indicatorHeight > 0 && (
+          <Rect
+            x={canvasWidth - 3}
+            y={indicatorY}
+            width={3}
+            height={indicatorHeight}
+            color="#ffffff44"
           />
         )}
       </Canvas>

@@ -148,6 +148,11 @@
 - [x] Backspace works on all keyboards including Gboard (`deleteSurroundingTextInCodePoints` override in Kotlin)
 - [x] Settings delete buttons flush to right edge (custom `itemRow` layout, no `List.Item` internal padding)
 - [x] Edit connection prefills all fields correctly (`resetKey` + `useEffect` watching `editProfile`)
+- [x] Terminal scrollback — swipe down to scroll into history, swipe up to return to live; scroll indicator on canvas edge
+- [x] Terminal keyboard haptics — light impact on every key press via shared `tapHaptic()` (`src/utils/haptics.ts`); also replaces `Vibration.vibrate(1)` in `SwipeableRow`
+- [x] Shift modifier key labelled "shift" (was "⇧")
+- [x] Reanimated worklet warnings eliminated — all `useRef` values read/written inside gesture worklets replaced with `useSharedValue`
+- [x] Background session keepalive (Android) — `SshForegroundService` + `PARTIAL_WAKE_LOCK` + `WifiLock` prevent Android from killing SSH when screen off or app backgrounded; JSch `setServerAliveInterval(15_000)` replaces no-op `setConfig("ServerAliveInterval")`
 
 ---
 
