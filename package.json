@@ -36,6 +36,7 @@
     "expo-symbols": "~56.0.5",
     "expo-system-ui": "~56.0.5",
     "expo-terminal-keyboard": "file:./modules/expo-terminal-keyboard",
+    "expo-updates": "~56.0.17",
     "expo-web-browser": "~56.0.5",
     "react": "19.2.3",
     "react-native": "0.85.3",
