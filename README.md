@@ -12,7 +12,7 @@ A mobile SSH terminal for Android (and eventually iOS) built with Expo. Connect 
 
 ## Features
 
-- **SSH connections** — password and public-key (RSA, Ed25519, ECDSA, OpenSSH format) authentication
+- **SSH connections** — password, public-key (RSA, Ed25519, ECDSA, OpenSSH format), and browser-based (Tailscale / keyboard-interactive URL) authentication
 - **Multi-session** — open multiple SSH sessions simultaneously; each runs independently in the background
 - **Session persistence** — navigate away without disconnecting; resume any session from the Sessions tab
 - **Terminal emulator** — VT100/VT220/xterm-256color state machine with SGR colours, alternate screen, scroll regions, and UTF-8
@@ -21,6 +21,7 @@ A mobile SSH terminal for Android (and eventually iOS) built with Expo. Connect 
 - **Encrypted storage** — profiles and private keys encrypted at rest using the OS keychain (`expo-secure-store`) and AES via `expo-crypto`
 - **SSH key management** — import PEM keys by file picker or paste; keys stored encrypted in the app's document directory
 - **Device lock** — mark individual connections as locked; biometric / device PIN required before a session opens
+- **URL auth** — when the SSH server issues a keyboard-interactive URL challenge (e.g. Tailscale), the app prompts with Approve / Deny; optionally auto-opens in browser via the Security settings toggle
 - **Global search** — search across saved profiles, active sessions, and discovered hosts from any tab
 - **Terminal customisation** — font choice, font size (pinch-to-zoom), and colour theme picker
 - **Keyboard toolbar** — Ctrl, Alt, Tab, Esc, arrow keys, and Ctrl+C above the system keyboard
@@ -89,11 +90,11 @@ cy-tty/
 │       └── src/               #   VTParser · Terminal · GhosttyVt namespace
 ├── src/
 │   ├── app/
-│   │   ├── _layout.tsx        # Root: PaperProvider + SessionManagerProvider
+│   │   ├── _layout.tsx        # Root: SshUrlSettingsProvider + SessionManagerProvider + PaperProvider
 │   │   ├── (tabs)/
 │   │   │   ├── index.tsx      # Connect tab — network scan + profiles + FAB
 │   │   │   ├── sessions.tsx   # Active sessions list
-│   │   │   └── settings.tsx   # SSH keys + terminal preferences
+│   │   │   └── settings.tsx   # SSH keys + terminal preferences + security (URL auth toggle)
 │   │   └── terminal/[id].tsx  # Full-screen terminal screen
 │   ├── components/
 │   │   ├── common/            # SwipeableRow
@@ -105,6 +106,7 @@ cy-tty/
 │   │   ├── keys/              # KeyStore (encrypted key files)
 │   │   ├── network/           # subnet scanner
 │   │   ├── profiles/          # SshProfile types + SecureStore CRUD
+│   │   ├── security/          # SshUrlSettings (auto-open URL auth) + React context
 │   │   ├── sessions/          # SessionManager context
 │   │   └── theme/             # colour themes · fonts · preferences
 │   └── hooks/                 # use-ssh-session · use-terminal · use-terminal-size · use-profiles · use-network-scan

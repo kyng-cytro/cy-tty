@@ -23,8 +23,9 @@
 - [x] Android: `build.gradle` with `com.github.mwiede:jsch:0.2.19` (OpenSSH key format support)
 - [x] Android: `ExpoSshModule.kt` — multi-session via `ConcurrentHashMap<String, SshSessionState>`; all methods/events carry `sessionId`
 - [x] JS: `src/index.ts` SshClient API — all methods take `sessionId` as first arg
-- [x] JS: `src/ExpoSshModule.types.ts` — `SshDataEvent`, `SshErrorEvent`, `SshCloseEvent` all include `sessionId`
+- [x] JS: `src/ExpoSshModule.types.ts` — `SshDataEvent`, `SshErrorEvent`, `SshCloseEvent`, `SshAuthChallengeEvent` all include `sessionId`
 - [x] `connectWithKey(sessionId, host, port, username, privateKeyPem, passphrase)` — JSch Android + NMSSH iOS
+- [x] `onAuthChallenge` event — native keyboard-interactive handler emits URL for browser-based auth (e.g. Tailscale); `AbortableSocketFactory` added for non-blocking connect
 - [x] Autolinked via `expo-ssh: file:./modules/expo-ssh` in package.json
 - [x] `node_modules/expo-ssh/src/` kept in sync manually after module source changes
 - [ ] Manual test: connect → get shell prompt → receive data (requires native build)
@@ -80,6 +81,8 @@
 - [x] `src/core/profiles/storage.ts` — SecureStore-backed profile CRUD; passwords stored under `cy_tty_pw_<id>`
 - [x] `src/core/keys/key-store.ts` — XOR-obfuscated SSH private key files in `documentDirectory/cy-tty-keys/`; key encryption bytes in SecureStore
 - [x] `src/core/auth/require-device-auth.ts` — biometric / device-PIN gate; graceful `true` fallback when no hardware/enrollment
+- [x] `src/core/security/ssh-url-settings.ts` — AsyncStorage-backed `{ autoOpen }` setting (key `cy_tty_ssh_url_open`)
+- [x] `src/core/security/ssh-url-settings-context.tsx` — `SshUrlSettingsProvider` + `useSshUrlSettings` hook
 - [x] ~~`src/core/keys/known-hosts.ts`~~ — removed (not needed)
 
 ---
@@ -92,6 +95,7 @@
 - [x] `SessionNodeInner` runs `useSshSession` + `useTerminal` + `useTerminalSize`; never remounts while session is alive
 - [x] Multiple concurrent sessions fully independent (no bleed between sessions)
 - [x] `create(profile)` → `sessionId`; `destroy(sessionId)` → unmounts node + triggers native disconnect
+- [x] `LiveSession` exposes `pendingAuthUrl`, `approveAuth`, `denyAuth` for URL auth challenge handling
 - [x] `src/hooks/use-profiles.ts` — thin wrapper over `ProfileStorage`
 
 ---
@@ -105,12 +109,12 @@
 
 ## 📱 UI Screens
 
-- [x] `src/app/_layout.tsx` — `PaperProvider` + Tokyo Night theme + `SessionManagerProvider`
+- [x] `src/app/_layout.tsx` — `SshUrlSettingsProvider` wraps `SessionManagerProvider` + `PaperProvider`
 - [x] `src/app/(tabs)/_layout.tsx` — bottom tab bar: Connect · Sessions · Settings
 - [x] `src/app/(tabs)/index.tsx` — Connect tab: app header + network scan + recent profiles + FAB + search icon; `launchSession` checks `profile.locked` before connecting
 - [x] `src/app/(tabs)/sessions.tsx` — active sessions from SessionManager; `#id` suffix (last 4 chars) disambiguates same-host sessions; `handlePress` checks `profile.locked`
-- [x] `src/app/(tabs)/settings.tsx` — SSH Keys section (custom `itemRow` layout); Terminal section; font accordion open by default; KnownHosts section removed
-- [x] `src/app/terminal/[id].tsx` — SafeAreaView all 4 edges; auto-hide header (Minimize ← | label | Disconnect ✕); Cancel/Retry/Reconnect overlays in `StatusOverlay`
+- [x] `src/app/(tabs)/settings.tsx` — SSH Keys section; Security section (auto-open URL auth toggle); Terminal section
+- [x] `src/app/terminal/[id].tsx` — SafeAreaView all 4 edges; auto-hide header; Cancel/Retry/Reconnect overlays; URL auth challenge overlay (Approve / Deny) in `StatusOverlay`; pinch-to-zoom disabled while connecting
 - [x] `src/components/terminal/terminal-keyboard.tsx` — Ctrl · Tab · arrows · Esc toolbar above home indicator
 - [x] `src/components/terminal/terminal-session.tsx` — context + hook only (no dead TerminalSession component)
 - [x] `src/components/connection/connection-sheet.tsx` — bottom-sheet form; edit prefill via `resetKey` + `useEffect`; file import via `expo-file-system/legacy` + `content://` `copyAsync`; lock toggle (Switch + biometric explanation)
@@ -153,6 +157,22 @@
 - [x] `AGENTS.md` — package manager, Expo version, native modules, node_modules sync, architecture, key files, code style, verification
 - [x] `PLAN.md` — data flow, session lifecycle, native module details, storage table, UI screens, file map, future work
 - [x] `TASKS.md` — this file
+
+---
+
+## 🐛 Known Bugs
+
+- [ ] `connection-sheet.tsx` — form fields don't reset after saving/closing; need to clear state on dismiss
+
+---
+
+## 🚀 Onboarding
+
+- [ ] Design onboarding flow: step screens with images/illustrations covering key features (multi-session, terminal, device lock, URL auth)
+- [ ] Build `src/app/onboarding.tsx` — paginated step screen (e.g. `FlatList` with `pagingEnabled` or a swipeable view)
+- [ ] Add "Get Started" CTA on final step → navigate to main app and persist `hasOnboarded` flag
+- [ ] Gate onboarding: check `hasOnboarded` in `_layout.tsx`; redirect new users before tabs render
+- [ ] Source / create images or illustrations for each step
 
 ---
 

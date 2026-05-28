@@ -76,6 +76,7 @@ SshClient.resize(sessionId, cols, rows)
 SshClient.onData(({ sessionId, data }) => …)
 SshClient.onError(({ sessionId, message }) => …)
 SshClient.onClose(({ sessionId }) => …)
+SshClient.onAuthChallenge(({ sessionId, url }) => …)
 ```
 
 Android stores active sessions in a `ConcurrentHashMap<String, SshSessionState>`. Each session has its own JSch session, channel, and read thread. Events are tagged with `sessionId` so the JS side routes data correctly.
@@ -107,6 +108,7 @@ When libghostty's public C API stabilises and the XCFramework / Android NDK buil
 | SSH private keys (ciphertext) | `documentDirectory/cy-tty-keys/<id>.enc` | XOR-obfuscated with per-key random bytes |
 | Key encryption bytes | `expo-secure-store` key `cy_tty_keyenc_<id>` | 32 random bytes as hex |
 | Key metadata | `expo-secure-store` key `CY_TTY_KEY_META` | JSON array of `{ id, label, createdAt }` |
+| URL auth settings | `AsyncStorage` key `cy_tty_ssh_url_open` | JSON `{ autoOpen: boolean }` |
 
 ---
 
@@ -116,7 +118,7 @@ When libghostty's public C API stabilises and the XCFramework / Android NDK buil
 |-------|--------|-------|
 | `/(tabs)/` | Connect | Network scan · recent profiles · FAB · search |
 | `/(tabs)/sessions` | Sessions | Live sessions from SessionManager; `#id` suffix to disambiguate duplicates |
-| `/(tabs)/settings` | Settings | SSH keys · terminal font/size/theme |
+| `/(tabs)/settings` | Settings | SSH keys · terminal font/size/theme · security (auto-open URL auth toggle) |
 | `/terminal/[id]` | Terminal | Skia canvas · floating auto-hide header · keyboard toolbar |
 
 ---
@@ -126,7 +128,7 @@ When libghostty's public C API stabilises and the XCFramework / Android NDK buil
 ```
 src/
 ├── app/
-│   ├── _layout.tsx               PaperProvider + SessionManagerProvider
+│   ├── _layout.tsx               SshUrlSettingsProvider + SessionManagerProvider + PaperProvider
 │   ├── (tabs)/
 │   │   ├── index.tsx             Connect tab
 │   │   ├── sessions.tsx          Active sessions
@@ -145,14 +147,17 @@ src/
 │       ├── terminal-keyboard.tsx Ctrl/Alt/arrow toolbar
 │       └── terminal-session.tsx  TerminalSessionContext + hook
 ├── core/
-│   ├── auth/require-device-auth.ts   expo-local-authentication gate
-│   ├── keys/key-store.ts             Encrypted SSH key CRUD
-│   ├── network/scanner.ts            TCP port-22 subnet scan
+│   ├── auth/require-device-auth.ts          expo-local-authentication gate
+│   ├── keys/key-store.ts                    Encrypted SSH key CRUD
+│   ├── network/scanner.ts                   TCP port-22 subnet scan
 │   ├── profiles/
-│   │   ├── storage.ts                SecureStore profile CRUD
-│   │   └── types.ts                  SshProfile · AuthMethod
-│   ├── sessions/session-manager.tsx  Global session context
-│   └── theme/                        Colour themes · fonts · preferences
+│   │   ├── storage.ts                       SecureStore profile CRUD
+│   │   └── types.ts                         SshProfile · AuthMethod
+│   ├── security/
+│   │   ├── ssh-url-settings.ts              AsyncStorage CRUD for URL auth settings
+│   │   └── ssh-url-settings-context.tsx     SshUrlSettingsProvider + useSshUrlSettings hook
+│   ├── sessions/session-manager.tsx         Global session context
+│   └── theme/                               Colour themes · fonts · preferences
 └── hooks/
     ├── use-network-scan.ts
     ├── use-profiles.ts
@@ -160,6 +165,24 @@ src/
     ├── use-terminal.ts
     └── use-terminal-size.ts
 ```
+
+---
+
+## Known bugs
+
+- **`connection-sheet.tsx` not resetting** — form fields (host, username, password, etc.) retain stale values after the sheet is dismissed or a profile is saved. The fix is to call the form reset inside the sheet's `onDismiss` handler (and after a successful save), clearing all controlled state back to defaults.
+
+---
+
+## Onboarding screen
+
+A one-time paginated intro shown to new users before they reach the main tabs.
+
+- **Route:** `src/app/onboarding.tsx` (or a `(onboarding)/` group)
+- **Structure:** step screens with an image/illustration + headline + short body copy; swipeable (paging `FlatList` or `react-native-reanimated` carousel)
+- **Steps (draft):** Connect to any SSH server · Multiple live sessions · Secure encrypted storage · Browser-based auth (Tailscale etc.)
+- **CTA:** "Get Started" on the final step → set `hasOnboarded: true` in `AsyncStorage` → `router.replace('/(tabs)')`
+- **Gate:** `_layout.tsx` checks `hasOnboarded` on mount; redirects unauthenticated users to `/onboarding` before tabs render
 
 ---
 
