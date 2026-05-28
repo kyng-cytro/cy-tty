@@ -8,7 +8,6 @@ export interface BackupSettings {
   sshUrlAutoOpen: boolean;
 }
 
-/** Plaintext payload — encrypted inside the backup file. */
 export interface BackupPayload {
   profiles: SshProfile[];
   keyMeta: KeyMeta[];
@@ -19,7 +18,6 @@ export interface BackupPayload {
   settings: BackupSettings;
 }
 
-/** The JSON envelope written to the .cytty file. */
 export interface BackupFile {
   version: 1;
   exportedAt: number;

@@ -119,7 +119,6 @@ export async function importBackup(fileUri: string, password: string): Promise<v
 
   const payload: BackupPayload = JSON.parse(encodeUTF8(plaintext)) as BackupPayload;
 
-  // Clear existing profiles
   const existingProfilesRaw = await SecureStore.getItemAsync('CY_TTY_PROFILES');
   const existingProfiles: Array<{ id: string }> = existingProfilesRaw
     ? JSON.parse(existingProfilesRaw)
@@ -131,7 +130,6 @@ export async function importBackup(fileUri: string, password: string): Promise<v
   );
   await SecureStore.deleteItemAsync('CY_TTY_PROFILES').catch(() => {});
 
-  // Clear existing keys
   const existingMetaRaw = await SecureStore.getItemAsync(META_KEY);
   const existingMeta: Array<{ id: string }> = existingMetaRaw ? JSON.parse(existingMetaRaw) : [];
   await Promise.all(
@@ -144,17 +142,14 @@ export async function importBackup(fileUri: string, password: string): Promise<v
   );
   await SecureStore.deleteItemAsync(META_KEY).catch(() => {});
 
-  // Clear settings
   for (const k of ALL_ASYNC_KEYS) {
     await AsyncStorage.removeItem(k).catch(() => {});
   }
 
-  // Restore profiles
   for (const profile of payload.profiles) {
     await ProfileStorage.save(profile);
   }
 
-  // Restore keys
   await FileSystem.makeDirectoryAsync(keysDir(), { intermediates: true }).catch(() => {});
   await SecureStore.setItemAsync(META_KEY, JSON.stringify(payload.keyMeta));
   await Promise.all(
@@ -170,7 +165,6 @@ export async function importBackup(fileUri: string, password: string): Promise<v
     ),
   );
 
-  // Restore settings
   await AsyncStorage.setItem(ASYNC_THEME_KEY, payload.settings.themeId);
   await AsyncStorage.setItem(ASYNC_FONT_KEY, payload.settings.fontId);
   await AsyncStorage.setItem(ASYNC_FONT_SIZE_KEY, String(payload.settings.fontSize));
