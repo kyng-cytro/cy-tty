@@ -26,6 +26,7 @@ export function createEmptyGrid(cols: number, rows: number): TerminalCell[][] {
 export function createEmptyState(cols: number, rows: number): TerminalState {
   return {
     grid: createEmptyGrid(cols, rows),
+    scrollback: [],
     cursor: { row: 0, col: 0, visible: true, shape: 'block' },
     cols,
     rows,
@@ -34,7 +35,18 @@ export function createEmptyState(cols: number, rows: number): TerminalState {
   };
 }
 
+const SCROLLBACK_MAX = 1000;
+
 export function applyDelta(state: TerminalState, delta: TerminalDelta): TerminalState {
+  // Append any newly scrolled-off rows to the scrollback buffer
+  let scrollback = state.scrollback;
+  if (delta.appendedScrollback.length > 0) {
+    scrollback = [...state.scrollback, ...delta.appendedScrollback];
+    if (scrollback.length > SCROLLBACK_MAX) {
+      scrollback = scrollback.slice(scrollback.length - SCROLLBACK_MAX);
+    }
+  }
+
   if (delta.cleared) {
     const fresh = createEmptyGrid(state.cols, state.rows);
     for (const { index, cells } of delta.dirtyRows) {
@@ -42,13 +54,14 @@ export function applyDelta(state: TerminalState, delta: TerminalDelta): Terminal
     }
     return {
       ...state,
+      scrollback,
       grid: fresh,
       cursor: delta.cursor,
       title: delta.title ?? state.title,
     };
   }
 
-  if (delta.dirtyRows.length === 0) {
+  if (delta.dirtyRows.length === 0 && delta.appendedScrollback.length === 0) {
     return {
       ...state,
       cursor: delta.cursor,
@@ -63,6 +76,7 @@ export function applyDelta(state: TerminalState, delta: TerminalDelta): Terminal
 
   return {
     ...state,
+    scrollback,
     grid,
     cursor: delta.cursor,
     title: delta.title ?? state.title,

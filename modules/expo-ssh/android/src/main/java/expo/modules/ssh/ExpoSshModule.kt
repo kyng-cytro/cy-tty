@@ -66,6 +66,8 @@ class ExpoSshModule : Module() {
       sess.setPassword(password)
       sess.setConfig("StrictHostKeyChecking", "no")
       sess.setConfig("PreferredAuthentications", "keyboard-interactive,password")
+      sess.setConfig("ServerAliveInterval", "30")
+      sess.setConfig("ServerAliveCountMax", "3")
       val socketFactory = AbortableSocketFactory()
       val state = SshSessionState(socketFactory = socketFactory, jschSession = sess)
       sessions[sessionId] = state
@@ -85,6 +87,8 @@ class ExpoSshModule : Module() {
       val sess = jsch.getSession(username, host, port)
       sess.setConfig("StrictHostKeyChecking", "no")
       sess.setConfig("PreferredAuthentications", "publickey,keyboard-interactive")
+      sess.setConfig("ServerAliveInterval", "30")
+      sess.setConfig("ServerAliveCountMax", "3")
       val socketFactory = AbortableSocketFactory()
       val state = SshSessionState(socketFactory = socketFactory, jschSession = sess)
       sessions[sessionId] = state

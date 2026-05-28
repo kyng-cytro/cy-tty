@@ -11,6 +11,7 @@ import { Linking, StyleSheet, View } from "react-native";
 
 import { KeyStore } from "@/core/keys/key-store";
 import { useSshUrlSettings } from "@/core/security/ssh-url-settings-context";
+import { useKeyboardHeight } from "@/hooks/use-keyboard-height";
 
 import type { SshProfile } from "@/core/profiles/types";
 import type { TerminalState } from "@/core/terminal/types";
@@ -81,11 +82,14 @@ function SessionNodeInner({
     height: DEFAULT_CELL_HEIGHT,
   });
 
+  const keyboardHeight = useKeyboardHeight();
+
   const { cols, rows } = useTerminalSize({
     cellWidth: cellSize.width,
     cellHeight: cellSize.height,
     paddingTop: CONTENT_PADDING_TOP,
     paddingH: CONTENT_PADDING_H,
+    keyboardHeight,
   });
 
   const { state, processBytes } = useTerminal({ cols, rows });
@@ -278,6 +282,7 @@ export function SessionManagerProvider({ children }: { children: ReactNode }) {
       disconnect: () => {},
       terminalState: {
         grid: [],
+        scrollback: [],
         cursor: { row: 0, col: 0, visible: true, shape: "block" },
         cols: 80,
         rows: 24,

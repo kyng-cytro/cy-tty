@@ -80,7 +80,7 @@ export function TerminalKeyboard() {
         </Text>
       </Pressable>
 
-      {(["ctrl", "alt"] as const).map((mod) => (
+      {(["ctrl", "shift", "alt"] as const).map((mod) => (
         <Pressable
           key={mod}
           style={[
@@ -103,7 +103,7 @@ export function TerminalKeyboard() {
               },
             ]}
           >
-            {mod}
+            {mod === "shift" ? "⇧" : mod}
           </Text>
         </Pressable>
       ))}

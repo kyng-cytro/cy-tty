@@ -103,6 +103,7 @@ export function resize(handle: TerminalHandle, cols: number, rows: number): void
     cursor: state.cursor,
     cleared: false,
     title: null,
+    appendedScrollback: [],
   };
 
   const cbs = listeners.get(handle);

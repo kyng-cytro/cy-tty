@@ -12,6 +12,7 @@
     "@shopify/react-native-skia": "2.6.2",
     "expo": "~56.0.5",
     "expo-build-properties": "^56.0.15",
+    "expo-clipboard": "^56.0.3",
     "expo-constants": "~56.0.16",
     "expo-crypto": "^56.0.4",
     "expo-device": "~56.0.4",
@@ -50,7 +51,7 @@
   },
   "scripts": {
     "start": "expo start",
-"android": "expo run:android",
+    "android": "expo run:android",
     "ios": "expo run:ios",
     "lint": "expo lint"
   },
