@@ -431,7 +431,6 @@ export default function TerminalScreen() {
       approveAuth: session?.approveAuth ?? (() => {}),
       denyAuth: session?.denyAuth ?? (() => {}),
     }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       write,
       session?.disconnect,

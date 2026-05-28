@@ -140,7 +140,6 @@ function SshKeysSection() {
   );
 }
 
-
 function SecuritySection() {
   const theme = useTheme();
   const { settings, setAutoOpen } = useSshUrlSettings();

@@ -1,3 +1,4 @@
+import type { ComponentProps } from "react";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import {
   Alert,
@@ -21,18 +22,17 @@ const THRESHOLD = 72;
 const MAX_DRAG = 96;
 const RESISTANCE = 0.55;
 
+type IconName = ComponentProps<typeof MaterialCommunityIcons>["name"];
+
 interface SwipeAction {
-  /** Called when the swipe is confirmed (after optional Alert). */
   onAction: () => void;
-  /** If provided, shows an Alert before calling onAction. */
   confirm?: {
     title: string;
     message: string;
-    /** Label for the confirm button. Defaults to "Confirm". */
     label?: string;
   };
   color?: string;
-  icon?: string;
+  icon?: IconName;
 }
 
 interface SwipeableRowProps {
@@ -119,7 +119,7 @@ export function SwipeableRow({
           ]}
         >
           <MaterialCommunityIcons
-            name={(left.icon ?? "delete-outline") as any}
+            name={left.icon ?? "delete-outline"}
             size={22}
             color="white"
           />
@@ -135,7 +135,7 @@ export function SwipeableRow({
           ]}
         >
           <MaterialCommunityIcons
-            name={(right.icon ?? "pencil-outline") as any}
+            name={right.icon ?? "pencil-outline"}
             size={22}
             color="white"
           />

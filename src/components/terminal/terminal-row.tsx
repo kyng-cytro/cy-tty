@@ -53,8 +53,6 @@ function buildRowData(
     }
     const run = runMap.get(colorKey)!;
 
-    // For a monospace font all glyphs share the same advance, so we place
-    // each glyph at its column's x with the row's baseline y.
     for (const id of ids) {
       run.glyphs.push({ id, pos: { x, y: rowY + baseline } });
     }
