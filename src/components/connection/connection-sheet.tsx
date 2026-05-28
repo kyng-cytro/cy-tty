@@ -27,7 +27,7 @@ import {
   useTheme,
 } from "react-native-paper";
 
-import { KeyStore, type KeyMeta } from "@/core/keys/key-store";
+import { KeyStore, validatePem, type KeyMeta } from "@/core/keys/key-store";
 import type { AuthMethod, SshProfile } from "@/core/profiles/types";
 
 export interface ConnectionSheetProps {
@@ -35,6 +35,8 @@ export interface ConnectionSheetProps {
   initialHost?: string;
   editProfile?: SshProfile;
   onOpenChange?: (open: boolean) => void;
+  /** Increment this each time the sheet is opened to guarantee form reset. */
+  openVersion?: number;
 }
 
 function validate(
@@ -58,7 +60,7 @@ export const ConnectionSheet = forwardRef<
   BottomSheetModal,
   ConnectionSheetProps
 >(function ConnectionSheet(
-  { onSave, initialHost = "", editProfile, onOpenChange },
+  { onSave, initialHost = "", editProfile, onOpenChange, openVersion },
   ref,
 ) {
   const theme = useTheme();
@@ -102,7 +104,7 @@ export const ConnectionSheet = forwardRef<
     setFormErrors({});
     setSubmitted(false);
     setResetKey((k) => k + 1);
-  }, [editProfile, initialHost]);
+  }, [editProfile, initialHost, openVersion]);
 
   const showError = (field: string) => submitted && !!formErrors[field];
 
@@ -120,7 +122,7 @@ export const ConnectionSheet = forwardRef<
 
   const handlePickFile = useCallback(async () => {
     const result = await DocumentPicker.getDocumentAsync({
-      type: "*/*",
+      type: ["text/plain", "application/x-pem-file", "application/octet-stream"],
       copyToCacheDirectory: true,
     });
     if (result.canceled || !result.assets?.[0]) return;
@@ -132,7 +134,16 @@ export const ConnectionSheet = forwardRef<
         await FileSystem.copyAsync({ from: uri, to: dest });
         uri = dest;
       }
-      setPemText(await FileSystem.readAsStringAsync(uri));
+      const content = await FileSystem.readAsStringAsync(uri);
+      const pemErr = validatePem(content);
+      if (pemErr) {
+        Alert.alert(
+          "Not a valid key file",
+          `This file doesn't look like a PEM private key.\n\n${pemErr}`,
+        );
+        return;
+      }
+      setPemText(content);
       setShowPasteArea(true);
     } catch {
       Alert.alert("Error", "Could not read the selected file.");
@@ -418,30 +429,37 @@ export const ConnectionSheet = forwardRef<
                 </Button>
               </View>
 
-              {showPasteArea && (
-                <>
-                  <TextInput
-                    label="Paste PEM private key"
-                    value={pemText}
-                    onChangeText={setPemText}
-                    mode="outlined"
-                    multiline
-                    numberOfLines={6}
-                    style={[styles.input, styles.pemInput]}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                  />
-                  <Button
-                    mode="contained"
-                    loading={importingKey}
-                    onPress={handleImportPem}
-                    disabled={!pemText.trim()}
-                    style={styles.importConfirm}
-                  >
-                    Import key
-                  </Button>
-                </>
-              )}
+              {showPasteArea && (() => {
+                const pemErr = pemText.trim() ? validatePem(pemText) : null;
+                return (
+                  <>
+                    <TextInput
+                      label="Paste PEM private key"
+                      value={pemText}
+                      onChangeText={setPemText}
+                      mode="outlined"
+                      multiline
+                      numberOfLines={6}
+                      style={[styles.input, styles.pemInput]}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      error={!!pemErr}
+                    />
+                    <HelperText type="error" visible={!!pemErr}>
+                      {pemErr ?? ""}
+                    </HelperText>
+                    <Button
+                      mode="contained"
+                      loading={importingKey}
+                      onPress={handleImportPem}
+                      disabled={!pemText.trim() || !!pemErr}
+                      style={styles.importConfirm}
+                    >
+                      Import key
+                    </Button>
+                  </>
+                );
+              })()}
 
               <HelperText type="error" visible={showError("key")}>
                 {formErrors.key}

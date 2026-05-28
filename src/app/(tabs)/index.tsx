@@ -39,6 +39,7 @@ export default function ConnectScreen() {
   const prefillHost = useRef("");
 
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetOpenAt, setSheetOpenAt] = useState(0);
   const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
@@ -79,17 +80,22 @@ export default function ConnectScreen() {
     [save, launchSession],
   );
 
+  const openSheet = useCallback(() => {
+    setSheetOpenAt(Date.now());
+    sheetRef.current?.present();
+  }, []);
+
   const handleConnectDevice = useCallback((host: DiscoveredHost) => {
     prefillHost.current = host.ip;
     editingProfile.current = undefined;
-    sheetRef.current?.present();
-  }, []);
+    openSheet();
+  }, [openSheet]);
 
   const handleEditProfile = useCallback((profile: SshProfile) => {
     editingProfile.current = profile;
     prefillHost.current = "";
-    sheetRef.current?.present();
-  }, []);
+    openSheet();
+  }, [openSheet]);
 
   const handleDeleteProfile = useCallback(
     (profile: SshProfile) => {
@@ -218,7 +224,7 @@ export default function ConnectScreen() {
           onPress={() => {
             editingProfile.current = undefined;
             prefillHost.current = "";
-            sheetRef.current?.present();
+            openSheet();
           }}
           accessibilityLabel="Add new connection"
         />
@@ -229,6 +235,7 @@ export default function ConnectScreen() {
           initialHost={prefillHost.current}
           editProfile={editingProfile.current}
           onOpenChange={setSheetOpen}
+          openVersion={sheetOpenAt}
         />
 
         <GlobalSearchSheet
