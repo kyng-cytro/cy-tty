@@ -77,7 +77,7 @@ export async function exportBackup(password: string): Promise<void> {
   const saltBytes = await Crypto.getRandomBytesAsync(32);
   const saltB64 = encodeBase64(new Uint8Array(saltBytes));
   const key = await deriveKey(password, saltB64);
-  const nonce = nacl.randomBytes(24);
+  const nonce = new Uint8Array(await Crypto.getRandomBytesAsync(24));
   const plaintext = decodeUTF8(JSON.stringify(payload));
   const ciphertextBytes = nacl.secretbox(plaintext, nonce, key);
 
