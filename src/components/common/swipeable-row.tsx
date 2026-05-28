@@ -2,7 +2,6 @@ import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import {
   Alert,
   StyleSheet,
-  Vibration,
   View,
   type StyleProp,
   type ViewStyle,
@@ -16,11 +15,13 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
+import { tapHaptic } from "@/utils/haptics";
+
 const THRESHOLD = 72;
 const MAX_DRAG = 96;
 const RESISTANCE = 0.55;
 
-export interface SwipeAction {
+interface SwipeAction {
   /** Called when the swipe is confirmed (after optional Alert). */
   onAction: () => void;
   /** If provided, shows an Alert before calling onAction. */
@@ -34,7 +35,7 @@ export interface SwipeAction {
   icon?: string;
 }
 
-export interface SwipeableRowProps {
+interface SwipeableRowProps {
   children: React.ReactNode;
   left?: SwipeAction;
   right?: SwipeAction;
@@ -55,10 +56,6 @@ function triggerAction(action: SwipeAction) {
   } else {
     action.onAction();
   }
-}
-
-function haptic() {
-  Vibration.vibrate(1);
 }
 
 const SNAP = { duration: 220, easing: Easing.out(Easing.cubic) };
@@ -89,7 +86,7 @@ export function SwipeableRow({
         (x.value <= -THRESHOLD && !!left) || (x.value >= THRESHOLD && !!right);
       if (pastThreshold && !didVibrate.value) {
         didVibrate.value = true;
-        runOnJS(haptic)();
+        runOnJS(tapHaptic)();
       } else if (!pastThreshold) {
         didVibrate.value = false;
       }

@@ -21,6 +21,7 @@
     "expo-font": "~56.0.5",
     "expo-ghostty-vt": "file:./modules/expo-ghostty-vt",
     "expo-glass-effect": "~56.0.4",
+    "expo-haptics": "^56.0.3",
     "expo-image": "~56.0.9",
     "expo-linking": "~56.0.12",
     "expo-local-authentication": "^56.0.4",

@@ -41,3 +41,7 @@ example
 # generated native folders
 /ios
 /android
+
+# module build outputs
+modules/expo-ssh/android/build/
+modules/expo-ghostty-vt/android/build/

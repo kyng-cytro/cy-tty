@@ -1,4 +1,3 @@
-import React from "react";
 import { Canvas, Rect, useFont } from "@shopify/react-native-skia";
 import { useEffect, useMemo } from "react";
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
@@ -22,17 +21,9 @@ const CC_BOLD = require("../../../assets/fonts/CascadiaCode-Bold.ttf");
 const HK_REG = require("../../../assets/fonts/Hack-Regular.ttf");
 const HK_BOLD = require("../../../assets/fonts/Hack-Bold.ttf");
 
-export interface SelectionRange {
-  startRow: number;
-  startCol: number;
-  endRow: number;
-  endCol: number;
-}
-
-export interface TerminalCanvasProps {
+interface TerminalCanvasProps {
   state: TerminalState;
   scrollOffset?: number;
-  selection?: SelectionRange | null;
   onCellSize?: (cellWidth: number, cellHeight: number) => void;
   style?: StyleProp<ViewStyle>;
 }
@@ -57,7 +48,6 @@ function makeEmptyRow(cols: number): TerminalCell[] {
 export function TerminalCanvas({
   state,
   scrollOffset = 0,
-  selection = null,
   onCellSize,
   style,
 }: TerminalCanvasProps) {
@@ -172,34 +162,6 @@ export function TerminalCanvas({
             themePalette={themePalette}
           />
         ))}
-
-        {selection && (() => {
-          // Normalise so start is always before end
-          const r0 = selection.startRow;
-          const c0 = selection.startCol;
-          const r1 = selection.endRow;
-          const c1 = selection.endCol;
-          const [sr, sc, er, ec] =
-            r0 < r1 || (r0 === r1 && c0 <= c1)
-              ? [r0, c0, r1, c1]
-              : [r1, c1, r0, c0];
-          const rects: React.ReactElement[] = [];
-          for (let r = sr; r <= er; r++) {
-            const x = r === sr ? sc * cellWidth : 0;
-            const endX = r === er ? (ec + 1) * cellWidth : state.cols * cellWidth;
-            rects.push(
-              <Rect
-                key={r}
-                x={x}
-                y={r * cellHeight}
-                width={Math.max(cellWidth, endX - x)}
-                height={cellHeight}
-                color="#4d8fe880"
-              />,
-            );
-          }
-          return rects;
-        })()}
 
         {scrollOffset === 0 && state.cursor.visible && (
           <Rect

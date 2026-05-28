@@ -15,8 +15,10 @@ A mobile SSH terminal for Android (and eventually iOS) built with Expo. Connect 
 - **SSH connections** — password, public-key (RSA, Ed25519, ECDSA, OpenSSH format), and browser-based (Tailscale / keyboard-interactive URL) authentication
 - **Multi-session** — open multiple SSH sessions simultaneously; each runs independently in the background
 - **Session persistence** — navigate away without disconnecting; resume any session from the Sessions tab
+- **Background keepalive** — foreground service + CPU and Wi-Fi locks keep sessions alive when the screen is off or the app is backgrounded
 - **Terminal emulator** — VT100/VT220/xterm-256color state machine with SGR colours, alternate screen, scroll regions, and UTF-8
 - **Skia renderer** — hardware-accelerated canvas via `@shopify/react-native-skia`; dirty-row diffing so only changed lines repaint
+- **Scrollback** — swipe down to scroll into terminal history, swipe up to return to the live view
 - **Network scan** — auto-discovers SSH hosts on your local `/24` subnet with OS detection from SSH banners
 - **Encrypted storage** — profiles and private keys encrypted at rest using the OS keychain (`expo-secure-store`) and AES via `expo-crypto`
 - **SSH key management** — import PEM keys by file picker or paste; keys stored encrypted in the app's document directory
@@ -24,7 +26,7 @@ A mobile SSH terminal for Android (and eventually iOS) built with Expo. Connect 
 - **URL auth** — when the SSH server issues a keyboard-interactive URL challenge (e.g. Tailscale), the app prompts with Approve / Deny; optionally auto-opens in browser via the Security settings toggle
 - **Global search** — search across saved profiles, active sessions, and discovered hosts from any tab
 - **Terminal customisation** — font choice, font size (pinch-to-zoom), and colour theme picker
-- **Keyboard toolbar** — Ctrl, Alt, Tab, Esc, arrow keys, and Ctrl+C above the system keyboard
+- **Keyboard toolbar** — Ctrl, Shift, Alt, Tab, Esc, arrow keys, and Ctrl+C above the system keyboard; haptic feedback on every key
 
 ---
 
@@ -41,6 +43,7 @@ A mobile SSH terminal for Android (and eventually iOS) built with Expo. Connect 
 | Navigation    | Expo Router (file-based)                                                                                            |
 | Storage       | `expo-secure-store`, `expo-file-system`, `expo-crypto`                                                              |
 | Auth          | `expo-local-authentication`                                                                                         |
+| Haptics       | `expo-haptics`                                                                                                      |
 
 ---
 
@@ -109,7 +112,8 @@ cy-tty/
 │   │   ├── security/          # SshUrlSettings (auto-open URL auth) + React context
 │   │   ├── sessions/          # SessionManager context
 │   │   └── theme/             # colour themes · fonts · preferences
-│   └── hooks/                 # use-ssh-session · use-terminal · use-terminal-size · use-profiles · use-network-scan
+│   ├── hooks/                 # use-ssh-session · use-terminal · use-terminal-size · use-profiles · use-network-scan
+│   └── utils/                 # haptics
 ├── AGENTS.md                  # AI agent instructions
 ├── PLAN.md                    # Architecture reference
 ├── TASKS.md                   # Implementation checklist
