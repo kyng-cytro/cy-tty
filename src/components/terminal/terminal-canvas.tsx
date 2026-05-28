@@ -1,3 +1,4 @@
+import React from "react";
 import { Canvas, Rect, useFont } from "@shopify/react-native-skia";
 import { useEffect, useMemo } from "react";
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
@@ -8,7 +9,7 @@ import {
   withTiming,
 } from "react-native-reanimated";
 
-import type { TerminalState } from "@/core/terminal/types";
+import type { TerminalCell, TerminalState } from "@/core/terminal/types";
 import { useTerminalPreferences } from "@/core/theme/preferences-context";
 import { TerminalRow } from "./terminal-row";
 
@@ -21,13 +22,45 @@ const CC_BOLD = require("../../../assets/fonts/CascadiaCode-Bold.ttf");
 const HK_REG = require("../../../assets/fonts/Hack-Regular.ttf");
 const HK_BOLD = require("../../../assets/fonts/Hack-Bold.ttf");
 
+export interface SelectionRange {
+  startRow: number;
+  startCol: number;
+  endRow: number;
+  endCol: number;
+}
+
 export interface TerminalCanvasProps {
   state: TerminalState;
+  scrollOffset?: number;
+  selection?: SelectionRange | null;
   onCellSize?: (cellWidth: number, cellHeight: number) => void;
   style?: StyleProp<ViewStyle>;
 }
 
-export function TerminalCanvas({ state, onCellSize, style }: TerminalCanvasProps) {
+function makeEmptyRow(cols: number): TerminalCell[] {
+  return Array.from({ length: cols }, () => ({
+    char: "",
+    width: 1,
+    fg: { kind: "default" as const },
+    bg: { kind: "default" as const },
+    bold: false,
+    dim: false,
+    italic: false,
+    underline: false,
+    blink: false,
+    inverse: false,
+    invisible: false,
+    strikethrough: false,
+  }));
+}
+
+export function TerminalCanvas({
+  state,
+  scrollOffset = 0,
+  selection = null,
+  onCellSize,
+  style,
+}: TerminalCanvasProps) {
   const { resolvedTheme, font: activeFont, fontSize } = useTerminalPreferences();
 
   const jbmReg = useFont(JBM_REG, fontSize);
@@ -70,6 +103,17 @@ export function TerminalCanvas({ state, onCellSize, style }: TerminalCanvasProps
     }
   }, [cellWidth, cellHeight, onCellSize]);
 
+  // Build the display grid: when scrolled, slice from combined scrollback+grid
+  const displayGrid = useMemo(() => {
+    if (scrollOffset === 0) return state.grid;
+    const combined: TerminalCell[][] = [...state.scrollback, ...state.grid];
+    const end = Math.max(0, combined.length - scrollOffset);
+    const start = Math.max(0, end - state.rows);
+    const slice = combined.slice(start, end);
+    while (slice.length < state.rows) slice.unshift(makeEmptyRow(state.cols));
+    return slice;
+  }, [state.grid, state.scrollback, state.rows, state.cols, scrollOffset]);
+
   const bgHex = resolvedTheme.backgroundHex;
   const fgRgb = resolvedTheme.foregroundRgb;
   const bgRgb = resolvedTheme.backgroundRgb;
@@ -95,6 +139,15 @@ export function TerminalCanvas({ state, onCellSize, style }: TerminalCanvasProps
   const cursorX = state.cursor.col * cellWidth;
   const cursorY = state.cursor.row * cellHeight;
 
+  // Scroll indicator geometry
+  const totalLines = state.scrollback.length + state.rows;
+  const indicatorHeight = totalLines > state.rows
+    ? Math.max(16, (state.rows / totalLines) * canvasHeight)
+    : 0;
+  const indicatorY = totalLines > state.rows
+    ? ((state.scrollback.length - scrollOffset) / totalLines) * canvasHeight
+    : 0;
+
   if (!regularFont || cellWidth === 0) {
     return <View style={[{ backgroundColor: bgHex }, styles.loading, style]} />;
   }
@@ -104,7 +157,7 @@ export function TerminalCanvas({ state, onCellSize, style }: TerminalCanvasProps
       <Canvas style={[styles.canvas, { width: canvasWidth, height: canvasHeight }]}>
         <Rect x={0} y={0} width={canvasWidth} height={canvasHeight} color={bgHex} />
 
-        {state.grid.map((cells, rowIndex) => (
+        {displayGrid.map((cells, rowIndex) => (
           <TerminalRow
             key={rowIndex}
             cells={cells}
@@ -120,7 +173,35 @@ export function TerminalCanvas({ state, onCellSize, style }: TerminalCanvasProps
           />
         ))}
 
-        {state.cursor.visible && (
+        {selection && (() => {
+          // Normalise so start is always before end
+          const r0 = selection.startRow;
+          const c0 = selection.startCol;
+          const r1 = selection.endRow;
+          const c1 = selection.endCol;
+          const [sr, sc, er, ec] =
+            r0 < r1 || (r0 === r1 && c0 <= c1)
+              ? [r0, c0, r1, c1]
+              : [r1, c1, r0, c0];
+          const rects: React.ReactElement[] = [];
+          for (let r = sr; r <= er; r++) {
+            const x = r === sr ? sc * cellWidth : 0;
+            const endX = r === er ? (ec + 1) * cellWidth : state.cols * cellWidth;
+            rects.push(
+              <Rect
+                key={r}
+                x={x}
+                y={r * cellHeight}
+                width={Math.max(cellWidth, endX - x)}
+                height={cellHeight}
+                color="#4d8fe880"
+              />,
+            );
+          }
+          return rects;
+        })()}
+
+        {scrollOffset === 0 && state.cursor.visible && (
           <Rect
             x={cursorX}
             y={cursorY}
@@ -129,6 +210,16 @@ export function TerminalCanvas({ state, onCellSize, style }: TerminalCanvasProps
             color={resolvedTheme.cursorHex}
             blendMode="difference"
             opacity={cursorOpacity}
+          />
+        )}
+
+        {scrollOffset > 0 && indicatorHeight > 0 && (
+          <Rect
+            x={canvasWidth - 3}
+            y={indicatorY}
+            width={3}
+            height={indicatorHeight}
+            color="#ffffff44"
           />
         )}
       </Canvas>

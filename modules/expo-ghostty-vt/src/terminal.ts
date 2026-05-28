@@ -83,10 +83,14 @@ function defaultAttrs(): CellAttrs {
 
 // ── Terminal ──────────────────────────────────────────────────────────────
 
+const SCROLLBACK_MAX = 1000;
+
 export class Terminal implements ParserActions {
   // Grid state
   private grid: TerminalCell[][];
   private altGrid: TerminalCell[][];
+  // Scrollback history (main screen only, oldest row first)
+  private scrollback: TerminalCell[][] = [];
 
   // Cursor
   private curRow = 0;
@@ -130,6 +134,7 @@ export class Terminal implements ParserActions {
   processBytes(data: string): TerminalDelta {
     this.dirtySet.clear();
     this.autoWrapPending = false;
+    this._appendedScrollback = [];
     let cleared = false;
     let titleChanged: string | null = null;
 
@@ -146,16 +151,21 @@ export class Terminal implements ParserActions {
       .sort((a, b) => a - b)
       .map((index) => ({ index, cells: [...this.grid[index]!] }));
 
+    const appendedScrollback = this._appendedScrollback;
+    this._appendedScrollback = [];
+
     return {
       dirtyRows,
       cursor: this.getCursor(),
       cleared,
       title: titleChanged,
+      appendedScrollback,
     };
   }
 
-  // Side channel so processBytes can capture clear/title events
+  // Side channels so processBytes can capture clear/title/scrollback events
   private _clearFlag: { cleared: boolean; title: string | null } | null = null;
+  private _appendedScrollback: TerminalCell[][] = [];
 
   resize(cols: number, rows: number): void {
     const prevRows = this.rows;
@@ -186,6 +196,7 @@ export class Terminal implements ParserActions {
   getState() {
     return {
       grid: this.grid.map((r) => [...r]),
+      scrollback: this.scrollback.map((r) => [...r]),
       cursor: this.getCursor(),
       cols: this.cols,
       rows: this.rows,
@@ -413,6 +424,16 @@ export class Terminal implements ParserActions {
     // Remove top row of scroll region, insert blank at bottom
     const removed = this.grid.splice(this.scrollTop, 1)[0];
     if (removed) {
+      // Save to scrollback when the full viewport scrolls (not a sub-region scroll)
+      // and only on the main screen — alternate screen manages its own display.
+      if (!this.altScreenActive && this.scrollTop === 0) {
+        const savedRow = [...removed];
+        this.scrollback.push(savedRow);
+        this._appendedScrollback.push(savedRow);
+        if (this.scrollback.length > SCROLLBACK_MAX) {
+          this.scrollback.splice(0, this.scrollback.length - SCROLLBACK_MAX);
+        }
+      }
       for (let c = 0; c < this.cols; c++) removed[c] = makeCell();
       this.grid.splice(this.scrollBottom, 0, removed);
     }

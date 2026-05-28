@@ -23,19 +23,21 @@ export function useTerminalSize({
   toolbarHeight = KEYBOARD_TOOLBAR_HEIGHT,
   paddingTop = 0,
   paddingH = 0,
+  keyboardHeight = 0,
 }: {
   cellWidth?: number;
   cellHeight?: number;
   toolbarHeight?: number;
   paddingTop?: number;
   paddingH?: number;
+  keyboardHeight?: number;
 } = {}): TerminalSizeResult {
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
 
   const terminalWidth = width - insets.left - insets.right - paddingH * 2;
   const terminalHeight =
-    height - insets.top - insets.bottom - toolbarHeight - paddingTop;
+    height - insets.top - insets.bottom - toolbarHeight - paddingTop - keyboardHeight;
 
   const cols = Math.max(1, Math.floor(terminalWidth / cellWidth));
   const rows = Math.max(1, Math.floor(terminalHeight / cellHeight));
