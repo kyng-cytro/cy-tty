@@ -43,7 +43,9 @@ SSH bytes
                                                      └─► TerminalCanvas (Skia)
 ```
 
-Sessions are keyed by a string `sessionId` (`session_<timestamp>_<n>`). All native calls (`connect`, `write`, `resize`, `disconnect`) and all events (`onData`, `onError`, `onClose`) carry this ID so multiple concurrent sessions never bleed into each other.
+Sessions are keyed by a string `sessionId` (`session_<timestamp>_<n>`). All native calls (`connect`, `write`, `resize`, `disconnect`) and all events (`onData`, `onError`, `onClose`, `onAuthChallenge`) carry this ID so multiple concurrent sessions never bleed into each other.
+
+`onAuthChallenge` fires when the SSH server's keyboard-interactive handler returns a URL (e.g. Tailscale auth). `SessionNode` either opens it automatically (if `autoOpen` is enabled in `SshUrlSettings`) or surfaces it as `pendingAuthUrl` on the `LiveSession` so the terminal screen can prompt the user with Approve / Deny buttons.
 
 ## Key files
 
@@ -53,6 +55,8 @@ Sessions are keyed by a string `sessionId` (`session_<timestamp>_<n>`). All nati
 | `src/core/profiles/storage.ts` | SecureStore-backed profile CRUD; passwords stored separately under `cy_tty_pw_<id>` |
 | `src/core/keys/key-store.ts` | AES-obfuscated private key files in `documentDirectory/cy-tty-keys/` |
 | `src/core/auth/require-device-auth.ts` | Biometric / device-PIN gate for locked profiles |
+| `src/core/security/ssh-url-settings.ts` | AsyncStorage-backed settings for URL auth (`autoOpen`); key `cy_tty_ssh_url_open` |
+| `src/core/security/ssh-url-settings-context.tsx` | React context + provider for `SshUrlOpenSettings`; wrap at root via `<SshUrlSettingsProvider>` |
 | `src/core/network/scanner.ts` | TCP port-22 subnet scan with SSH banner grab |
 | `src/hooks/use-ssh-session.ts` | SSH lifecycle hook — connects on mount, filters events by sessionId |
 | `src/hooks/use-terminal.ts` | GhosttyVt lifecycle; returns `state` + `processBytes` |
