@@ -23,8 +23,9 @@ import { useSshUrlSettings } from '@/core/security/ssh-url-settings-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
+import { exportBackup, importBackup } from '@/core/backup/backup';
 
-import { KeyStore, type KeyMeta } from '@/core/keys/key-store';
+import { KeyStore, validatePem, type KeyMeta } from '@/core/keys/key-store';
 import { useTerminalPreferences } from '@/core/theme/preferences-context';
 import { getCategories, getThemesByCategory } from '@/core/theme/color-themes';
 import type { TerminalTheme } from '@/core/theme/types';
@@ -42,7 +43,7 @@ function SshKeysSection() {
 
   const handleImport = useCallback(async () => {
     const result = await DocumentPicker.getDocumentAsync({
-      type: '*/*',
+      type: ['text/plain', 'application/x-pem-file', 'application/octet-stream'],
       copyToCacheDirectory: true,
     });
     if (result.canceled || !result.assets?.[0]) return;
@@ -54,6 +55,11 @@ function SshKeysSection() {
         uri = dest;
       }
       const pem = await FileSystem.readAsStringAsync(uri);
+      const pemErr = validatePem(pem);
+      if (pemErr) {
+        Alert.alert('Not a valid key file', `This file doesn't look like a PEM private key.\n\n${pemErr}`);
+        return;
+      }
       const name = result.assets[0].name ?? `Key ${keys.length + 1}`;
       await KeyStore.import(pem.trim(), name.replace(/\.[^.]+$/, ''));
       await reload();
@@ -433,6 +439,136 @@ function TerminalSection() {
   );
 }
 
+function BackupSection() {
+  const theme = useTheme();
+  const [busy, setBusy] = useState(false);
+
+  const handleExport = useCallback(() => {
+    Alert.prompt?.(
+      'Set backup password',
+      'This password encrypts your backup. You will need it to restore.',
+      async (password) => {
+        if (!password || password.length < 6) {
+          Alert.alert('Weak password', 'Password must be at least 6 characters.');
+          return;
+        }
+        setBusy(true);
+        try {
+          await exportBackup(password);
+        } catch (e) {
+          Alert.alert('Export failed', e instanceof Error ? e.message : 'Unknown error');
+        } finally {
+          setBusy(false);
+        }
+      },
+      'secure-text',
+    ) ?? Alert.alert('Not supported', 'Password prompts are not supported on this platform yet.');
+  }, []);
+
+  const handleImport = useCallback(async () => {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: ['application/octet-stream', 'public.data', '*/*'],
+      copyToCacheDirectory: true,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    const fileUri = result.assets[0].uri;
+
+    Alert.alert(
+      'Restore backup',
+      'This will replace all your profiles, keys, and settings. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Restore',
+          style: 'destructive',
+          onPress: () => {
+            Alert.prompt?.(
+              'Enter backup password',
+              'Enter the password you set when exporting.',
+              async (password) => {
+                if (!password) return;
+                setBusy(true);
+                try {
+                  await importBackup(fileUri, password);
+                  Alert.alert('Restored', 'Backup restored successfully. Restart the app to see all changes.');
+                } catch (e) {
+                  Alert.alert('Restore failed', e instanceof Error ? e.message : 'Unknown error');
+                } finally {
+                  setBusy(false);
+                }
+              },
+              'secure-text',
+            ) ?? Alert.alert('Not supported', 'Password prompts are not supported on this platform yet.');
+          },
+        },
+      ],
+    );
+  }, []);
+
+  return (
+    <View style={styles.section}>
+      <Text
+        variant="titleSmall"
+        style={[styles.sectionTitle, styles.sectionRow, { color: theme.colors.onSurfaceVariant }]}
+      >
+        BACKUP
+      </Text>
+
+      <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
+        <View style={styles.itemRow}>
+          <MaterialCommunityIcons
+            name="export-variant"
+            size={22}
+            color={theme.colors.onSurfaceVariant}
+            style={styles.listIcon}
+          />
+          <View style={styles.itemText}>
+            <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>Export backup</Text>
+            <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, opacity: 0.7 }}>
+              Save all profiles, keys and settings to an encrypted file
+            </Text>
+          </View>
+          <Button
+            mode="text"
+            compact
+            loading={busy}
+            onPress={handleExport}
+            textColor={theme.colors.primary}
+          >
+            Export
+          </Button>
+        </View>
+
+        <Divider />
+
+        <View style={styles.itemRow}>
+          <MaterialCommunityIcons
+            name="import"
+            size={22}
+            color={theme.colors.onSurfaceVariant}
+            style={styles.listIcon}
+          />
+          <View style={styles.itemText}>
+            <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>Import backup</Text>
+            <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, opacity: 0.7 }}>
+              Restore from a .cytty backup file — replaces all current data
+            </Text>
+          </View>
+          <Button
+            mode="text"
+            compact
+            loading={busy}
+            onPress={handleImport}
+            textColor={theme.colors.primary}
+          >
+            Import
+          </Button>
+        </View>
+      </Card>
+    </View>
+  );
+}
+
 export default function SettingsScreen() {
   const theme = useTheme();
 
@@ -451,6 +587,7 @@ export default function SettingsScreen() {
         <SshKeysSection />
         <SecuritySection />
         <TerminalSection />
+        <BackupSection />
       </ScrollView>
     </SafeAreaView>
   );
