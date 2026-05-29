@@ -30,6 +30,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Updates from 'expo-updates';
 import { exportBackup, importBackup } from '@/core/backup/backup';
+import { router } from 'expo-router';
 
 import { KeyStore, validatePem, type KeyMeta } from '@/core/keys/key-store';
 import { useTerminalPreferences } from '@/core/theme/preferences-context';
@@ -439,6 +440,34 @@ function TerminalSection() {
             })}
           </View>
         )}
+
+        <Divider />
+
+        <TouchableOpacity
+          onPress={() => router.push('/keyboard-keys')}
+          activeOpacity={0.7}
+          style={styles.accordionHeader}
+        >
+          <MaterialCommunityIcons
+            name="keyboard-settings-outline"
+            size={22}
+            color={uiTheme.colors.onSurfaceVariant}
+            style={styles.listIcon}
+          />
+          <View style={styles.accordionMeta}>
+            <Text variant="bodyMedium" style={{ color: uiTheme.colors.onSurface }}>
+              Keyboard keys
+            </Text>
+            <Text variant="labelSmall" style={{ color: uiTheme.colors.onSurfaceVariant }}>
+              Reorder and toggle keys
+            </Text>
+          </View>
+          <MaterialCommunityIcons
+            name="chevron-right"
+            size={20}
+            color={uiTheme.colors.onSurfaceVariant}
+          />
+        </TouchableOpacity>
       </Card>
     </View>
   );

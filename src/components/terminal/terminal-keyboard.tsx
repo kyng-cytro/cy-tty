@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { IconButton, useTheme } from "react-native-paper";
 
+import { useKeyboardSettings } from "@/core/keyboard/keyboard-settings-context";
 import { tapHaptic } from "@/utils/haptics";
 import { useTerminalSessionContext } from "./terminal-session";
 
@@ -22,26 +23,32 @@ interface SendKey {
   repeatable: boolean;
 }
 
-const SEND_KEYS: SendKey[] = [
-  { icon: "keyboard-tab", label: "Tab", data: "\t", repeatable: false },
-  { icon: "keyboard-esc", label: "Esc", data: "\x1b", repeatable: false },
-  { icon: "arrow-left", label: "Left", data: "\x1b[D", repeatable: true },
-  { icon: "arrow-up", label: "Up", data: "\x1b[A", repeatable: true },
-  { icon: "arrow-down", label: "Down", data: "\x1b[B", repeatable: true },
-  { icon: "arrow-right", label: "Right", data: "\x1b[C", repeatable: true },
-  { label: "F1", data: "\x1bOP", repeatable: true },
-  { label: "F2", data: "\x1bOQ", repeatable: true },
-  { label: "F3", data: "\x1bOR", repeatable: true },
-  { label: "F4", data: "\x1bOS", repeatable: true },
-  { label: "F5", data: "\x1b[15~", repeatable: true },
-  { label: "F6", data: "\x1b[17~", repeatable: true },
-  { label: "F7", data: "\x1b[18~", repeatable: true },
-  { label: "F8", data: "\x1b[19~", repeatable: true },
-  { label: "F9", data: "\x1b[20~", repeatable: true },
-  { label: "F10", data: "\x1b[21~", repeatable: true },
-  { label: "F11", data: "\x1b[23~", repeatable: true },
-  { label: "F12", data: "\x1b[24~", repeatable: true },
-];
+const SEND_KEY_MAP: Record<string, SendKey> = {
+  Tab:   { icon: "keyboard-tab",  label: "Tab",  data: "\t",       repeatable: false },
+  Esc:   { icon: "keyboard-esc",  label: "Esc",  data: "\x1b",     repeatable: false },
+  Left:  { icon: "arrow-left",    label: "Left", data: "\x1b[D",   repeatable: true  },
+  Up:    { icon: "arrow-up",      label: "Up",   data: "\x1b[A",   repeatable: true  },
+  Down:  { icon: "arrow-down",    label: "Down", data: "\x1b[B",   repeatable: true  },
+  Right: { icon: "arrow-right",   label: "Right",data: "\x1b[C",   repeatable: true  },
+  Home:  { label: "Home", data: "\x1b[H",   repeatable: true  },
+  End:   { label: "End",  data: "\x1b[F",   repeatable: true  },
+  PgUp:  { label: "PgUp", data: "\x1b[5~",  repeatable: true  },
+  PgDn:  { label: "PgDn", data: "\x1b[6~",  repeatable: true  },
+  Ins:   { label: "Ins",  data: "\x1b[2~",  repeatable: false },
+  Del:   { label: "Del",  data: "\x1b[3~",  repeatable: true  },
+  F1:    { label: "F1",   data: "\x1bOP",   repeatable: true  },
+  F2:    { label: "F2",   data: "\x1bOQ",   repeatable: true  },
+  F3:    { label: "F3",   data: "\x1bOR",   repeatable: true  },
+  F4:    { label: "F4",   data: "\x1bOS",   repeatable: true  },
+  F5:    { label: "F5",   data: "\x1b[15~", repeatable: true  },
+  F6:    { label: "F6",   data: "\x1b[17~", repeatable: true  },
+  F7:    { label: "F7",   data: "\x1b[18~", repeatable: true  },
+  F8:    { label: "F8",   data: "\x1b[19~", repeatable: true  },
+  F9:    { label: "F9",   data: "\x1b[20~", repeatable: true  },
+  F10:   { label: "F10",  data: "\x1b[21~", repeatable: true  },
+  F11:   { label: "F11",  data: "\x1b[23~", repeatable: true  },
+  F12:   { label: "F12",  data: "\x1b[24~", repeatable: true  },
+};
 
 interface HoldableKeyProps {
   icon?: IconName;
@@ -108,6 +115,7 @@ function HoldableKey({
 export function TerminalKeyboard() {
   const { write, status, showKeyboard, hideKeyboard, modifier, toggleModifier } =
     useTerminalSessionContext();
+  const { keys: keyEntries } = useKeyboardSettings();
   const theme = useTheme();
   const disabled = status !== "connected";
 
@@ -135,6 +143,11 @@ export function TerminalKeyboard() {
   const iconColor = disabled
     ? theme.colors.onSurfaceDisabled
     : theme.colors.onSurface;
+
+  const visibleKeys = keyEntries
+    .filter((k) => k.enabled)
+    .map((k) => SEND_KEY_MAP[k.id])
+    .filter((k): k is SendKey => k !== undefined);
 
   return (
     <View
@@ -219,7 +232,7 @@ export function TerminalKeyboard() {
         style={styles.sendKeysScroll}
         contentContainerStyle={styles.sendKeys}
       >
-        {SEND_KEYS.map((key) => (
+        {visibleKeys.map((key) => (
           <HoldableKey
             key={key.label}
             icon={key.icon}
