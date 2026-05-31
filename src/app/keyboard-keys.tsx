@@ -1,17 +1,14 @@
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import { Stack } from "expo-router";
+import { StyleSheet, TouchableOpacity } from "react-native";
 import DraggableFlatList, {
   ScaleDecorator,
   type RenderItemParams,
 } from "react-native-draggable-flatlist";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { Button, Divider, Switch, Text, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Stack } from "expo-router";
 
-import {
-  DEFAULT_KEYS,
-  type KeyEntry,
-} from "@/core/keyboard/keyboard-settings";
+import { DEFAULT_KEYS, type KeyEntry } from "@/core/keyboard/keyboard-settings";
 import { useKeyboardSettings } from "@/core/keyboard/keyboard-settings-context";
 
 export default function KeyboardKeysScreen() {
@@ -87,10 +84,10 @@ export default function KeyboardKeysScreen() {
       </Text>
       <DraggableFlatList
         data={keys}
-        keyExtractor={(item) => item.id}
         renderItem={renderItem}
-        onDragEnd={({ data }) => updateKeys(data)}
         containerStyle={styles.list}
+        keyExtractor={(item) => item.id}
+        onDragEnd={({ data }) => updateKeys(data)}
       />
     </SafeAreaView>
   );

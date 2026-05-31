@@ -10,22 +10,12 @@ import {
   Pressable,
   StyleSheet,
   View,
-  type DimensionValue,
 } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import {
-  Button,
-  IconButton,
-  Surface,
-  Text,
-  useTheme,
-} from "react-native-paper";
+import { Button, IconButton, Text, useTheme } from "react-native-paper";
 import Animated, {
   runOnJS,
   useSharedValue,
-  withDelay,
-  withRepeat,
-  withSequence,
   withTiming,
   type SharedValue,
 } from "react-native-reanimated";
@@ -56,240 +46,195 @@ function applyModifier(data: string, mod: "ctrl" | "alt" | "shift"): string {
       if (data === " ") return "\x00";
     }
     switch (data) {
-      case "\x1b[D": return "\x1b[1;5D";
-      case "\x1b[C": return "\x1b[1;5C";
-      case "\x1b[A": return "\x1b[1;5A";
-      case "\x1b[B": return "\x1b[1;5B";
-      case "\t":     return "\x1b[27;5;9~";
+      case "\x1b[D":
+        return "\x1b[1;5D";
+      case "\x1b[C":
+        return "\x1b[1;5C";
+      case "\x1b[A":
+        return "\x1b[1;5A";
+      case "\x1b[B":
+        return "\x1b[1;5B";
+      case "\t":
+        return "\x1b[27;5;9~";
     }
   } else if (mod === "alt") {
     if (data.length === 1) return "\x1b" + data;
     switch (data) {
-      case "\x1b[D": return "\x1b[1;3D";
-      case "\x1b[C": return "\x1b[1;3C";
-      case "\x1b[A": return "\x1b[1;3A";
-      case "\x1b[B": return "\x1b[1;3B";
-      case "\t":     return "\x1b[27;3;9~";
+      case "\x1b[D":
+        return "\x1b[1;3D";
+      case "\x1b[C":
+        return "\x1b[1;3C";
+      case "\x1b[A":
+        return "\x1b[1;3A";
+      case "\x1b[B":
+        return "\x1b[1;3B";
+      case "\t":
+        return "\x1b[27;3;9~";
     }
   } else {
     switch (data) {
-      case "\x1b[D": return "\x1b[1;2D";
-      case "\x1b[C": return "\x1b[1;2C";
-      case "\x1b[A": return "\x1b[1;2A";
-      case "\x1b[B": return "\x1b[1;2B";
-      case "\t":     return "\x1b[Z";
+      case "\x1b[D":
+        return "\x1b[1;2D";
+      case "\x1b[C":
+        return "\x1b[1;2C";
+      case "\x1b[A":
+        return "\x1b[1;2A";
+      case "\x1b[B":
+        return "\x1b[1;2B";
+      case "\t":
+        return "\x1b[Z";
     }
     if (data.length === 1) return data.toUpperCase();
   }
   return data;
 }
 
-function ShimmerBar({
-  width,
-  delay,
-  color,
+function StatusScreen({
+  onExit,
+  label,
 }: {
-  width: DimensionValue;
-  delay: number;
-  color: string;
+  onExit: () => void;
+  label: string;
 }) {
-  const opacity = useSharedValue(0.2);
-  useEffect(() => {
-    opacity.value = withDelay(
-      delay,
-      withRepeat(
-        withSequence(
-          withTiming(0.55, { duration: 900 }),
-          withTiming(0.2, { duration: 900 }),
-        ),
-        -1,
-      ),
-    );
-  }, [opacity, delay]);
-  return (
-    <Animated.View
-      style={[
-        { width, height: 9, borderRadius: 4, marginVertical: 3, backgroundColor: color },
-        { opacity },
-      ]}
-    />
-  );
-}
-
-function TerminalSkeleton() {
-  const theme = useTheme();
-  const LINE_WIDTHS = ["85%", "95%", "60%", "100%", "75%"] as const;
-  return (
-    <View style={styles.skeletonLines}>
-      {LINE_WIDTHS.map((w, i) => (
-        <ShimmerBar key={i} width={w} delay={i * 120} color={theme.colors.onSurface} />
-      ))}
-    </View>
-  );
-}
-
-function StatusOverlay({ onExit, label }: { onExit: () => void; label: string }) {
   const theme = useTheme();
   const { status, error, pendingAuthUrl, approveAuth, denyAuth } =
     useTerminalSessionContext();
 
-  if (status === "connected") return null;
-
-  const domain = pendingAuthUrl?.match(/https?:\/\/([^/]+)/)?.[1] ?? pendingAuthUrl;
+  const domain =
+    pendingAuthUrl?.match(/https?:\/\/([^/]+)/)?.[1] ?? pendingAuthUrl;
 
   return (
-    <View style={styles.overlay}>
-      <Surface style={styles.overlayCard} elevation={3}>
-        {status === "connecting" && pendingAuthUrl && (
-          <>
-            <MaterialCommunityIcons
-              name="shield-lock-outline"
-              size={56}
-              color={theme.colors.primary}
-            />
+    <View style={styles.statusScreen}>
+      {status === "connecting" && pendingAuthUrl && (
+        <>
+          <MaterialCommunityIcons
+            name="shield-lock-outline"
+            size={48}
+            color={theme.colors.primary}
+          />
+          <Text
+            variant="titleLarge"
+            style={[styles.statusTitle, { color: theme.colors.onSurface }]}
+          >
+            Authentication Required
+          </Text>
+          <Text
+            variant="bodyMedium"
+            style={[
+              styles.statusMessage,
+              { color: theme.colors.onSurfaceVariant },
+            ]}
+          >
+            This server wants to open a link in your browser to complete sign-in
+          </Text>
+          {!!domain && (
             <Text
-              variant="titleLarge"
-              style={[styles.cardTitle, { color: theme.colors.onSurface }]}
+              variant="labelMedium"
+              style={{ color: theme.colors.primary, marginTop: 4 }}
             >
-              Authentication Required
+              {domain}
             </Text>
-            <Text
-              variant="bodyMedium"
-              style={[styles.cardMessage, { color: theme.colors.onSurfaceVariant }]}
-            >
-              This server wants to open a link in your browser to complete
-              sign-in
-            </Text>
-            <View
-              style={[
-                styles.domainPill,
-                { backgroundColor: theme.colors.primaryContainer },
-              ]}
-            >
-              <MaterialCommunityIcons
-                name="link-variant"
-                size={14}
-                color={theme.colors.primary}
-              />
-              <Text
-                variant="labelMedium"
-                numberOfLines={1}
-                style={{ color: theme.colors.primary, flexShrink: 1 }}
-              >
-                {domain}
-              </Text>
-            </View>
-            <View style={styles.cardActions}>
-              <Button mode="outlined" onPress={denyAuth}>
-                Deny
-              </Button>
-              <Button mode="contained" onPress={approveAuth}>
-                Open in Browser
-              </Button>
-            </View>
-          </>
-        )}
-
-        {status === "connecting" && !pendingAuthUrl && (
-          <>
-            <View
-              style={[
-                styles.iconRing,
-                { borderColor: theme.colors.primaryContainer },
-              ]}
-            >
-              <MaterialCommunityIcons
-                name="console-network-outline"
-                size={28}
-                color={theme.colors.primary}
-              />
-            </View>
-            <Text
-              variant="titleMedium"
-              style={[styles.cardTitle, { color: theme.colors.onSurface }]}
-            >
-              Connecting
-            </Text>
-            {!!label && (
-              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                {label}
-              </Text>
-            )}
-            <TerminalSkeleton />
-            <Button mode="outlined" onPress={onExit} style={styles.cardBtn}>
-              Cancel
+          )}
+          <View style={styles.statusActions}>
+            <Button mode="outlined" onPress={denyAuth}>
+              Deny
             </Button>
-          </>
-        )}
-
-        {(status === "idle" || status === "error") && (
-          <>
-            <View
-              style={[
-                styles.iconRing,
-                { borderColor: theme.colors.errorContainer },
-              ]}
-            >
-              <MaterialCommunityIcons
-                name="alert-circle-outline"
-                size={28}
-                color={theme.colors.error}
-              />
-            </View>
-            <Text
-              variant="titleMedium"
-              style={[styles.cardTitle, { color: theme.colors.onSurface }]}
-            >
-              Connection Failed
-            </Text>
-            {!!label && (
-              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                {label}
-              </Text>
-            )}
-            <Text
-              variant="bodyMedium"
-              style={[styles.cardMessage, { color: theme.colors.onSurfaceVariant }]}
-            >
-              {error ?? "An unknown error occurred"}
-            </Text>
-            <Button mode="outlined" onPress={onExit} style={styles.cardBtn}>
-              Back
+            <Button mode="contained" onPress={approveAuth}>
+              Open in Browser
             </Button>
-          </>
-        )}
+          </View>
+        </>
+      )}
 
-        {status === "disconnected" && (
-          <>
-            <View
-              style={[
-                styles.iconRing,
-                { borderColor: theme.colors.surfaceVariant },
-              ]}
-            >
-              <MaterialCommunityIcons
-                name="lan-disconnect"
-                size={28}
-                color={theme.colors.onSurfaceVariant}
-              />
-            </View>
+      {status === "connecting" && !pendingAuthUrl && (
+        <>
+          <MaterialCommunityIcons
+            name="console-network-outline"
+            size={48}
+            color={theme.colors.primary}
+          />
+          <Text
+            variant="titleMedium"
+            style={[styles.statusTitle, { color: theme.colors.onSurface }]}
+          >
+            Connecting
+          </Text>
+          {!!label && (
             <Text
-              variant="titleMedium"
-              style={[styles.cardTitle, { color: theme.colors.onSurface }]}
+              variant="bodySmall"
+              style={{ color: theme.colors.onSurfaceVariant }}
             >
-              Session Ended
+              {label}
             </Text>
-            {!!label && (
-              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                {label}
-              </Text>
-            )}
-            <Button mode="outlined" onPress={onExit} style={styles.cardBtn}>
-              Back
-            </Button>
-          </>
-        )}
-      </Surface>
+          )}
+          <Button mode="text" onPress={onExit} style={styles.statusBtn}>
+            Cancel
+          </Button>
+        </>
+      )}
+
+      {(status === "idle" || status === "error") && (
+        <>
+          <MaterialCommunityIcons
+            name="alert-circle-outline"
+            size={48}
+            color={theme.colors.error}
+          />
+          <Text
+            variant="titleMedium"
+            style={[styles.statusTitle, { color: theme.colors.onSurface }]}
+          >
+            Connection Failed
+          </Text>
+          {!!label && (
+            <Text
+              variant="bodySmall"
+              style={{ color: theme.colors.onSurfaceVariant }}
+            >
+              {label}
+            </Text>
+          )}
+          <Text
+            variant="bodyMedium"
+            style={[
+              styles.statusMessage,
+              { color: theme.colors.onSurfaceVariant },
+            ]}
+          >
+            {error ?? "An unknown error occurred"}
+          </Text>
+          <Button mode="text" onPress={onExit} style={styles.statusBtn}>
+            Back
+          </Button>
+        </>
+      )}
+
+      {status === "disconnected" && (
+        <>
+          <MaterialCommunityIcons
+            name="lan-disconnect"
+            size={48}
+            color={theme.colors.onSurfaceVariant}
+          />
+          <Text
+            variant="titleMedium"
+            style={[styles.statusTitle, { color: theme.colors.onSurface }]}
+          >
+            Session Ended
+          </Text>
+          {!!label && (
+            <Text
+              variant="bodySmall"
+              style={{ color: theme.colors.onSurfaceVariant }}
+            >
+              {label}
+            </Text>
+          )}
+          <Button mode="text" onPress={onExit} style={styles.statusBtn}>
+            Back
+          </Button>
+        </>
+      )}
     </View>
   );
 }
@@ -302,7 +247,6 @@ interface FloatingHeaderProps {
 function FloatingHeader({ label, opacity }: FloatingHeaderProps) {
   const theme = useTheme();
   const { status, disconnect } = useTerminalSessionContext();
-
   const handleMinimize = useCallback(() => router.back(), []);
   const handleDisconnect = useCallback(() => {
     disconnect();
@@ -359,7 +303,9 @@ export default function TerminalScreen() {
   const scrollOffsetRef = useRef(0);
   const scrollDrag = useSharedValue(0);
 
-  const [modifier, setModifier] = useState<"ctrl" | "alt" | "shift" | null>(null);
+  const [modifier, setModifier] = useState<"ctrl" | "alt" | "shift" | null>(
+    null,
+  );
   const modifierRef = useRef<"ctrl" | "alt" | "shift" | null>(null);
   modifierRef.current = modifier;
 
@@ -434,7 +380,10 @@ export default function TerminalScreen() {
     (delta: number) => {
       if (!session) return;
       const scrollbackLen = session.terminalState.scrollback.length;
-      const next = Math.max(0, Math.min(scrollbackLen, scrollOffsetRef.current + delta));
+      const next = Math.max(
+        0,
+        Math.min(scrollbackLen, scrollOffsetRef.current + delta),
+      );
       if (next !== scrollOffsetRef.current) {
         scrollOffsetRef.current = next;
         setScrollOffset(next);
@@ -561,39 +510,44 @@ export default function TerminalScreen() {
           { backgroundColor: resolvedTheme.backgroundHex },
         ]}
       >
-        <KeyboardAvoidingView
-          style={styles.flex}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-        >
-          <GestureDetector gesture={Gesture.Simultaneous(pinchGesture, panGesture)}>
-            <Pressable
-              style={styles.flex}
-              onPress={() => {
-                toggleHeader();
-                showKeyboard();
-              }}
+        {session.status !== "connected" ? (
+          <StatusScreen onExit={handleExit} label={label} />
+        ) : (
+          <KeyboardAvoidingView
+            style={styles.flex}
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+          >
+            <GestureDetector
+              gesture={Gesture.Simultaneous(pinchGesture, panGesture)}
             >
-              <TerminalCanvas
-                state={session.terminalState}
-                scrollOffset={scrollOffset}
-                onCellSize={(cw, ch) => {
-                  cellHeight.value = ch;
-                  session.resize(cw, ch);
+              <Pressable
+                style={styles.flex}
+                onPress={() => {
+                  toggleHeader();
+                  showKeyboard();
                 }}
-                style={[styles.flex, styles.canvasPadding]}
-              />
-            </Pressable>
-          </GestureDetector>
+              >
+                <TerminalCanvas
+                  state={session.terminalState}
+                  scrollOffset={scrollOffset}
+                  onCellSize={(cw, ch) => {
+                    cellHeight.value = ch;
+                    session.resize(cw, ch);
+                  }}
+                  style={[styles.flex, styles.canvasPadding]}
+                />
+              </Pressable>
+            </GestureDetector>
 
-          <TerminalKeyboardView
-            focused={keyboardFocused}
-            onInput={(data) => writeRef.current(data)}
-          />
+            <TerminalKeyboardView
+              focused={keyboardFocused}
+              onInput={(data) => writeRef.current(data)}
+            />
 
-          <TerminalKeyboard />
-          <StatusOverlay onExit={handleExit} label={label} />
-          <FloatingHeader label={label} opacity={headerOpacity} />
-        </KeyboardAvoidingView>
+            <TerminalKeyboard />
+            <FloatingHeader label={label} opacity={headerOpacity} />
+          </KeyboardAvoidingView>
+        )}
       </SafeAreaView>
     </TerminalSessionContext.Provider>
   );
@@ -606,58 +560,25 @@ const styles = StyleSheet.create({
     paddingTop: CONTENT_PADDING_TOP,
     paddingHorizontal: CONTENT_PADDING_H,
   },
-  overlay: {
-    ...StyleSheet.absoluteFill,
+  statusScreen: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(0,0,0,0.65)",
-    paddingHorizontal: 24,
-  },
-  overlayCard: {
-    width: "100%",
-    maxWidth: 320,
-    borderRadius: 20,
-    padding: 28,
-    alignItems: "center",
+    paddingHorizontal: 32,
     gap: 8,
   },
-  cardTitle: {
+  statusTitle: {
     textAlign: "center",
-    marginTop: 4,
+    marginTop: 8,
   },
-  cardMessage: {
+  statusMessage: {
     textAlign: "center",
-    marginTop: 4,
   },
-  cardBtn: { marginTop: 12, minWidth: 110 },
-  cardActions: {
+  statusBtn: { marginTop: 8 },
+  statusActions: {
     flexDirection: "row",
     gap: 12,
-    marginTop: 12,
-  },
-  iconRing: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    borderWidth: 2,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 4,
-  },
-  domainPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginTop: 4,
-    maxWidth: "100%",
-  },
-  skeletonLines: {
-    width: "100%",
-    marginVertical: 12,
-    gap: 4,
+    marginTop: 8,
   },
   floatingHeader: {
     position: "absolute",
