@@ -20,6 +20,9 @@
     "production": {
       "android": {
         "buildType": "app-bundle"
+      },
+      "env": {
+        "APP_VARIANT": "production"
       }
     }
   },

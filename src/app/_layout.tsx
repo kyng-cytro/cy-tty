@@ -1,6 +1,7 @@
 import { SessionManagerProvider } from "@/core/sessions/session-manager";
 import { SshUrlSettingsProvider } from "@/core/security/ssh-url-settings-context";
 import { TerminalPreferencesProvider } from "@/core/theme/preferences-context";
+import { KeyboardSettingsProvider } from "@/core/keyboard/keyboard-settings-context";
 import { useMaterial3Theme } from "@pchmn/expo-material3-theme";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -26,26 +27,29 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <SshUrlSettingsProvider>
-        <SessionManagerProvider>
-          <TerminalPreferencesProvider>
-            <PaperProvider theme={theme}>
-              <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
-              <Stack
-                screenOptions={{
-                  contentStyle: { backgroundColor: theme.colors.background },
-                  headerStyle: { backgroundColor: theme.colors.surface },
-                  headerTintColor: theme.colors.onSurface,
-                }}
-              >
-                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                <Stack.Screen
-                  name="terminal/[id]"
-                  options={{ headerShown: false, animation: "slide_from_bottom" }}
-                />
-              </Stack>
-            </PaperProvider>
-          </TerminalPreferencesProvider>
-        </SessionManagerProvider>
+        <KeyboardSettingsProvider>
+          <SessionManagerProvider>
+            <TerminalPreferencesProvider>
+              <PaperProvider theme={theme}>
+                <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
+                <Stack
+                  screenOptions={{
+                    contentStyle: { backgroundColor: theme.colors.background },
+                    headerStyle: { backgroundColor: theme.colors.surface },
+                    headerTintColor: theme.colors.onSurface,
+                  }}
+                >
+                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                  <Stack.Screen
+                    name="terminal/[id]"
+                    options={{ headerShown: false, animation: "slide_from_bottom" }}
+                  />
+                  <Stack.Screen name="keyboard-keys" />
+                </Stack>
+              </PaperProvider>
+            </TerminalPreferencesProvider>
+          </SessionManagerProvider>
+        </KeyboardSettingsProvider>
       </SshUrlSettingsProvider>
     </GestureHandlerRootView>
   );

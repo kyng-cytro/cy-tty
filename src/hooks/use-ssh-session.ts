@@ -44,17 +44,25 @@ const FRIENDLY_ERRORS: [RegExp, string][] = [
   [/timeout/i, "Connection timed out"],
   [/too\s*many\s*auth/i, "Too many failed authentication attempts"],
   [/permission\s*denied/i, "Permission denied"],
+  [
+    /call to function.*has been rejected/i,
+    "Connection failed — could not reach server",
+  ],
 ];
 
 function extractMessage(err: unknown): string {
   const raw = err instanceof Error ? err.message : String(err);
-  const firstLine = raw.split("\n")[0].trim();
+  // Unwrap Expo native module rejection: "Call to function '...' has been rejected.\n\nCaused by: <real error>"
+  const causedByMatch = raw.match(/[Cc]aused\s+by[:\s]+(.+)/s);
+  const base = causedByMatch
+    ? causedByMatch[1].split("\n")[0].trim()
+    : raw.split("\n")[0].trim();
   // Strip leading Java class path (e.g. "com.jcraft.jsch.JSchException: ...")
-  const colonIdx = firstLine.indexOf(": ");
+  const colonIdx = base.indexOf(": ");
   const stripped =
-    colonIdx !== -1 && /^[\w.]+$/.test(firstLine.slice(0, colonIdx))
-      ? firstLine.slice(colonIdx + 2)
-      : firstLine;
+    colonIdx !== -1 && /^[\w.]+$/.test(base.slice(0, colonIdx))
+      ? base.slice(colonIdx + 2)
+      : base;
   const msg = stripped || "Connection failed";
   for (const [pattern, friendly] of FRIENDLY_ERRORS) {
     if (pattern.test(msg)) return friendly;

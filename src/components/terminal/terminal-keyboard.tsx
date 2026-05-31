@@ -1,22 +1,121 @@
-import { useCallback, useEffect, useState } from "react";
-import { Keyboard, Pressable, StyleSheet, Text, View } from "react-native";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Keyboard,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { IconButton, useTheme } from "react-native-paper";
 
+import { useKeyboardSettings } from "@/core/keyboard/keyboard-settings-context";
 import { tapHaptic } from "@/utils/haptics";
 import { useTerminalSessionContext } from "./terminal-session";
 
-const SEND_KEYS = [
-  { icon: "keyboard-tab", label: "Tab", data: "\t" },
-  { icon: "keyboard-esc", label: "Esc", data: "\x1b" },
-  { icon: "arrow-left", label: "Left", data: "\x1b[D" },
-  { icon: "arrow-up", label: "Up", data: "\x1b[A" },
-  { icon: "arrow-down", label: "Down", data: "\x1b[B" },
-  { icon: "arrow-right", label: "Right", data: "\x1b[C" },
-] as const;
+type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
+
+interface SendKey {
+  icon?: IconName;
+  label: string;
+  data: string;
+  repeatable: boolean;
+}
+
+const SEND_KEY_MAP: Record<string, SendKey> = {
+  Tab:   { icon: "keyboard-tab",  label: "Tab",  data: "\t",       repeatable: false },
+  Esc:   { icon: "keyboard-esc",  label: "Esc",  data: "\x1b",     repeatable: false },
+  Left:  { icon: "arrow-left",    label: "Left", data: "\x1b[D",   repeatable: true  },
+  Up:    { icon: "arrow-up",      label: "Up",   data: "\x1b[A",   repeatable: true  },
+  Down:  { icon: "arrow-down",    label: "Down", data: "\x1b[B",   repeatable: true  },
+  Right: { icon: "arrow-right",   label: "Right",data: "\x1b[C",   repeatable: true  },
+  Home:  { label: "Home", data: "\x1b[H",   repeatable: true  },
+  End:   { label: "End",  data: "\x1b[F",   repeatable: true  },
+  PgUp:  { label: "PgUp", data: "\x1b[5~",  repeatable: true  },
+  PgDn:  { label: "PgDn", data: "\x1b[6~",  repeatable: true  },
+  Ins:   { label: "Ins",  data: "\x1b[2~",  repeatable: false },
+  Del:   { label: "Del",  data: "\x1b[3~",  repeatable: true  },
+  F1:    { label: "F1",   data: "\x1bOP",   repeatable: true  },
+  F2:    { label: "F2",   data: "\x1bOQ",   repeatable: true  },
+  F3:    { label: "F3",   data: "\x1bOR",   repeatable: true  },
+  F4:    { label: "F4",   data: "\x1bOS",   repeatable: true  },
+  F5:    { label: "F5",   data: "\x1b[15~", repeatable: true  },
+  F6:    { label: "F6",   data: "\x1b[17~", repeatable: true  },
+  F7:    { label: "F7",   data: "\x1b[18~", repeatable: true  },
+  F8:    { label: "F8",   data: "\x1b[19~", repeatable: true  },
+  F9:    { label: "F9",   data: "\x1b[20~", repeatable: true  },
+  F10:   { label: "F10",  data: "\x1b[21~", repeatable: true  },
+  F11:   { label: "F11",  data: "\x1b[23~", repeatable: true  },
+  F12:   { label: "F12",  data: "\x1b[24~", repeatable: true  },
+};
+
+interface HoldableKeyProps {
+  icon?: IconName;
+  label: string;
+  data: string;
+  write: (data: string) => void;
+  disabled: boolean;
+  repeatable: boolean;
+  iconColor: string;
+}
+
+function HoldableKey({
+  icon,
+  label,
+  data,
+  write,
+  disabled,
+  repeatable,
+  iconColor,
+}: HoldableKeyProps) {
+  const repeatTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const repeatInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopRepeat = useCallback(() => {
+    if (repeatTimeout.current) {
+      clearTimeout(repeatTimeout.current);
+      repeatTimeout.current = null;
+    }
+    if (repeatInterval.current) {
+      clearInterval(repeatInterval.current);
+      repeatInterval.current = null;
+    }
+  }, []);
+
+  useEffect(() => stopRepeat, [stopRepeat]);
+
+  const handlePressIn = useCallback(() => {
+    if (disabled) return;
+    tapHaptic();
+    write(data);
+    if (!repeatable) return;
+    repeatTimeout.current = setTimeout(() => {
+      repeatInterval.current = setInterval(() => write(data), 80);
+    }, 400);
+  }, [disabled, write, data, repeatable]);
+
+  return (
+    <Pressable
+      onPressIn={handlePressIn}
+      onPressOut={stopRepeat}
+      disabled={disabled}
+      accessibilityLabel={label}
+      style={icon ? styles.iconKey : styles.fnKey}
+    >
+      {icon ? (
+        <MaterialCommunityIcons name={icon} size={20} color={iconColor} />
+      ) : (
+        <Text style={[styles.fnKeyText, { color: iconColor }]}>{label}</Text>
+      )}
+    </Pressable>
+  );
+}
 
 export function TerminalKeyboard() {
   const { write, status, showKeyboard, hideKeyboard, modifier, toggleModifier } =
     useTerminalSessionContext();
+  const { keys: keyEntries } = useKeyboardSettings();
   const theme = useTheme();
   const disabled = status !== "connected";
 
@@ -41,6 +140,15 @@ export function TerminalKeyboard() {
     else showKeyboard();
   }, [keyboardVisible, showKeyboard, hideKeyboard]);
 
+  const iconColor = disabled
+    ? theme.colors.onSurfaceDisabled
+    : theme.colors.onSurface;
+
+  const visibleKeys = keyEntries
+    .filter((k) => k.enabled)
+    .map((k) => SEND_KEY_MAP[k.id])
+    .filter((k): k is SendKey => k !== undefined);
+
   return (
     <View
       style={[
@@ -64,7 +172,10 @@ export function TerminalKeyboard() {
 
       <Pressable
         style={[styles.modKey, disabled && styles.modKeyDisabled]}
-        onPress={() => { tapHaptic(); write("\x03"); }}
+        onPress={() => {
+          tapHaptic();
+          write("\x03");
+        }}
         disabled={disabled}
         accessibilityLabel="Send Ctrl+C"
       >
@@ -91,7 +202,10 @@ export function TerminalKeyboard() {
               backgroundColor: theme.colors.primaryContainer,
             },
           ]}
-          onPress={() => { tapHaptic(); toggleModifier(mod); }}
+          onPress={() => {
+            tapHaptic();
+            toggleModifier(mod);
+          }}
           accessibilityLabel={`${mod} modifier`}
         >
           <Text
@@ -112,22 +226,25 @@ export function TerminalKeyboard() {
 
       <View style={[styles.sep, { backgroundColor: theme.colors.outline }]} />
 
-      <View style={styles.sendKeys}>
-        {SEND_KEYS.map((key) => (
-          <IconButton
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.sendKeysScroll}
+        contentContainerStyle={styles.sendKeys}
+      >
+        {visibleKeys.map((key) => (
+          <HoldableKey
             key={key.label}
             icon={key.icon}
-            size={20}
+            label={key.label}
+            data={key.data}
+            write={write}
             disabled={disabled}
-            iconColor={
-              disabled ? theme.colors.onSurfaceDisabled : theme.colors.onSurface
-            }
-            onPress={() => { tapHaptic(); write(key.data); }}
-            accessibilityLabel={key.label}
-            style={styles.key}
+            repeatable={key.repeatable}
+            iconColor={iconColor}
           />
         ))}
-      </View>
+      </ScrollView>
     </View>
   );
 }
@@ -164,10 +281,33 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     letterSpacing: 0.3,
   },
-  sendKeys: {
+  sendKeysScroll: {
     flex: 1,
+  },
+  sendKeys: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    paddingRight: 4,
+  },
+  iconKey: {
+    width: 40,
+    height: 36,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 6,
+  },
+  fnKey: {
+    minWidth: 34,
+    height: 36,
+    paddingHorizontal: 5,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 6,
+  },
+  fnKeyText: {
+    fontSize: 11,
+    fontWeight: "600",
+    letterSpacing: 0.2,
+    textAlign: "center",
   },
 });

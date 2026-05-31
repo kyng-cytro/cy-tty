@@ -12,13 +12,7 @@ import {
   View,
 } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import {
-  ActivityIndicator,
-  Button,
-  IconButton,
-  Text,
-  useTheme,
-} from "react-native-paper";
+import { Button, IconButton, Text, useTheme } from "react-native-paper";
 import Animated, {
   runOnJS,
   useSharedValue,
@@ -52,82 +46,96 @@ function applyModifier(data: string, mod: "ctrl" | "alt" | "shift"): string {
       if (data === " ") return "\x00";
     }
     switch (data) {
-      case "\x1b[D": return "\x1b[1;5D";
-      case "\x1b[C": return "\x1b[1;5C";
-      case "\x1b[A": return "\x1b[1;5A";
-      case "\x1b[B": return "\x1b[1;5B";
-      case "\t":     return "\x1b[27;5;9~";
+      case "\x1b[D":
+        return "\x1b[1;5D";
+      case "\x1b[C":
+        return "\x1b[1;5C";
+      case "\x1b[A":
+        return "\x1b[1;5A";
+      case "\x1b[B":
+        return "\x1b[1;5B";
+      case "\t":
+        return "\x1b[27;5;9~";
     }
   } else if (mod === "alt") {
     if (data.length === 1) return "\x1b" + data;
     switch (data) {
-      case "\x1b[D": return "\x1b[1;3D";
-      case "\x1b[C": return "\x1b[1;3C";
-      case "\x1b[A": return "\x1b[1;3A";
-      case "\x1b[B": return "\x1b[1;3B";
-      case "\t":     return "\x1b[27;3;9~";
+      case "\x1b[D":
+        return "\x1b[1;3D";
+      case "\x1b[C":
+        return "\x1b[1;3C";
+      case "\x1b[A":
+        return "\x1b[1;3A";
+      case "\x1b[B":
+        return "\x1b[1;3B";
+      case "\t":
+        return "\x1b[27;3;9~";
     }
   } else {
     switch (data) {
-      case "\x1b[D": return "\x1b[1;2D";
-      case "\x1b[C": return "\x1b[1;2C";
-      case "\x1b[A": return "\x1b[1;2A";
-      case "\x1b[B": return "\x1b[1;2B";
-      case "\t":     return "\x1b[Z";
+      case "\x1b[D":
+        return "\x1b[1;2D";
+      case "\x1b[C":
+        return "\x1b[1;2C";
+      case "\x1b[A":
+        return "\x1b[1;2A";
+      case "\x1b[B":
+        return "\x1b[1;2B";
+      case "\t":
+        return "\x1b[Z";
     }
     if (data.length === 1) return data.toUpperCase();
   }
   return data;
 }
 
-function StatusOverlay({ onExit }: { onExit: () => void }) {
+function StatusScreen({
+  onExit,
+  label,
+}: {
+  onExit: () => void;
+  label: string;
+}) {
   const theme = useTheme();
   const { status, error, pendingAuthUrl, approveAuth, denyAuth } =
     useTerminalSessionContext();
 
-  if (status === "connected") return null;
+  const domain =
+    pendingAuthUrl?.match(/https?:\/\/([^/]+)/)?.[1] ?? pendingAuthUrl;
 
   return (
-    <View
-      style={[styles.overlay, { backgroundColor: theme.colors.surface + "ee" }]}
-    >
+    <View style={styles.statusScreen}>
       {status === "connecting" && pendingAuthUrl && (
         <>
           <MaterialCommunityIcons
-            name="shield-link-variant-outline"
-            size={52}
+            name="shield-lock-outline"
+            size={48}
             color={theme.colors.primary}
           />
           <Text
-            variant="titleMedium"
-            style={{ color: theme.colors.onSurface, marginTop: 8 }}
+            variant="titleLarge"
+            style={[styles.statusTitle, { color: theme.colors.onSurface }]}
           >
             Authentication Required
           </Text>
           <Text
             variant="bodyMedium"
             style={[
-              styles.overlayText,
+              styles.statusMessage,
               { color: theme.colors.onSurfaceVariant },
             ]}
           >
-            This session wants to open a link in your browser to complete
-            authentication:
+            This server wants to open a link in your browser to complete sign-in
           </Text>
-          <Text
-            variant="labelSmall"
-            numberOfLines={3}
-            style={[
-              styles.overlayUrl,
-              {
-                color: theme.colors.primary,
-                backgroundColor: theme.colors.surfaceVariant,
-              },
-            ]}
-          >
-            {pendingAuthUrl}
-          </Text>
-          <View style={styles.overlayActions}>
+          {!!domain && (
+            <Text
+              variant="labelMedium"
+              style={{ color: theme.colors.primary, marginTop: 4 }}
+            >
+              {domain}
+            </Text>
+          )}
+          <View style={styles.statusActions}>
             <Button mode="outlined" onPress={denyAuth}>
               Deny
             </Button>
@@ -140,14 +148,26 @@ function StatusOverlay({ onExit }: { onExit: () => void }) {
 
       {status === "connecting" && !pendingAuthUrl && (
         <>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <MaterialCommunityIcons
+            name="console-network-outline"
+            size={48}
+            color={theme.colors.primary}
+          />
           <Text
-            variant="bodyLarge"
-            style={[styles.overlayText, { color: theme.colors.onSurface }]}
+            variant="titleMedium"
+            style={[styles.statusTitle, { color: theme.colors.onSurface }]}
           >
-            Connecting…
+            Connecting
           </Text>
-          <Button mode="outlined" onPress={onExit} style={styles.overlayBtn}>
+          {!!label && (
+            <Text
+              variant="bodySmall"
+              style={{ color: theme.colors.onSurfaceVariant }}
+            >
+              {label}
+            </Text>
+          )}
+          <Button mode="text" onPress={onExit} style={styles.statusBtn}>
             Cancel
           </Button>
         </>
@@ -157,25 +177,33 @@ function StatusOverlay({ onExit }: { onExit: () => void }) {
         <>
           <MaterialCommunityIcons
             name="alert-circle-outline"
-            size={52}
+            size={48}
             color={theme.colors.error}
           />
           <Text
             variant="titleMedium"
-            style={{ color: theme.colors.error, marginTop: 8 }}
+            style={[styles.statusTitle, { color: theme.colors.onSurface }]}
           >
-            Connection failed
+            Connection Failed
           </Text>
+          {!!label && (
+            <Text
+              variant="bodySmall"
+              style={{ color: theme.colors.onSurfaceVariant }}
+            >
+              {label}
+            </Text>
+          )}
           <Text
             variant="bodyMedium"
             style={[
-              styles.overlayText,
+              styles.statusMessage,
               { color: theme.colors.onSurfaceVariant },
             ]}
           >
             {error ?? "An unknown error occurred"}
           </Text>
-          <Button mode="outlined" onPress={onExit} style={styles.overlayBtn}>
+          <Button mode="text" onPress={onExit} style={styles.statusBtn}>
             Back
           </Button>
         </>
@@ -185,16 +213,24 @@ function StatusOverlay({ onExit }: { onExit: () => void }) {
         <>
           <MaterialCommunityIcons
             name="lan-disconnect"
-            size={52}
+            size={48}
             color={theme.colors.onSurfaceVariant}
           />
           <Text
             variant="titleMedium"
-            style={[styles.overlayText, { color: theme.colors.onSurface }]}
+            style={[styles.statusTitle, { color: theme.colors.onSurface }]}
           >
-            Session ended
+            Session Ended
           </Text>
-          <Button mode="outlined" onPress={onExit} style={styles.overlayBtn}>
+          {!!label && (
+            <Text
+              variant="bodySmall"
+              style={{ color: theme.colors.onSurfaceVariant }}
+            >
+              {label}
+            </Text>
+          )}
+          <Button mode="text" onPress={onExit} style={styles.statusBtn}>
             Back
           </Button>
         </>
@@ -211,7 +247,6 @@ interface FloatingHeaderProps {
 function FloatingHeader({ label, opacity }: FloatingHeaderProps) {
   const theme = useTheme();
   const { status, disconnect } = useTerminalSessionContext();
-
   const handleMinimize = useCallback(() => router.back(), []);
   const handleDisconnect = useCallback(() => {
     disconnect();
@@ -268,7 +303,9 @@ export default function TerminalScreen() {
   const scrollOffsetRef = useRef(0);
   const scrollDrag = useSharedValue(0);
 
-  const [modifier, setModifier] = useState<"ctrl" | "alt" | "shift" | null>(null);
+  const [modifier, setModifier] = useState<"ctrl" | "alt" | "shift" | null>(
+    null,
+  );
   const modifierRef = useRef<"ctrl" | "alt" | "shift" | null>(null);
   modifierRef.current = modifier;
 
@@ -343,7 +380,10 @@ export default function TerminalScreen() {
     (delta: number) => {
       if (!session) return;
       const scrollbackLen = session.terminalState.scrollback.length;
-      const next = Math.max(0, Math.min(scrollbackLen, scrollOffsetRef.current + delta));
+      const next = Math.max(
+        0,
+        Math.min(scrollbackLen, scrollOffsetRef.current + delta),
+      );
       if (next !== scrollOffsetRef.current) {
         scrollOffsetRef.current = next;
         setScrollOffset(next);
@@ -470,39 +510,44 @@ export default function TerminalScreen() {
           { backgroundColor: resolvedTheme.backgroundHex },
         ]}
       >
-        <KeyboardAvoidingView
-          style={styles.flex}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-        >
-          <GestureDetector gesture={Gesture.Simultaneous(pinchGesture, panGesture)}>
-            <Pressable
-              style={styles.flex}
-              onPress={() => {
-                toggleHeader();
-                showKeyboard();
-              }}
+        {session.status !== "connected" ? (
+          <StatusScreen onExit={handleExit} label={label} />
+        ) : (
+          <KeyboardAvoidingView
+            style={styles.flex}
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+          >
+            <GestureDetector
+              gesture={Gesture.Simultaneous(pinchGesture, panGesture)}
             >
-              <TerminalCanvas
-                state={session.terminalState}
-                scrollOffset={scrollOffset}
-                onCellSize={(cw, ch) => {
-                  cellHeight.value = ch;
-                  session.resize(cw, ch);
+              <Pressable
+                style={styles.flex}
+                onPress={() => {
+                  toggleHeader();
+                  showKeyboard();
                 }}
-                style={[styles.flex, styles.canvasPadding]}
-              />
-            </Pressable>
-          </GestureDetector>
+              >
+                <TerminalCanvas
+                  state={session.terminalState}
+                  scrollOffset={scrollOffset}
+                  onCellSize={(cw, ch) => {
+                    cellHeight.value = ch;
+                    session.resize(cw, ch);
+                  }}
+                  style={[styles.flex, styles.canvasPadding]}
+                />
+              </Pressable>
+            </GestureDetector>
 
-          <TerminalKeyboardView
-            focused={keyboardFocused}
-            onInput={(data) => writeRef.current(data)}
-          />
+            <TerminalKeyboardView
+              focused={keyboardFocused}
+              onInput={(data) => writeRef.current(data)}
+            />
 
-          <TerminalKeyboard />
-          <StatusOverlay onExit={handleExit} />
-          <FloatingHeader label={label} opacity={headerOpacity} />
-        </KeyboardAvoidingView>
+            <TerminalKeyboard />
+            <FloatingHeader label={label} opacity={headerOpacity} />
+          </KeyboardAvoidingView>
+        )}
       </SafeAreaView>
     </TerminalSessionContext.Provider>
   );
@@ -515,27 +560,25 @@ const styles = StyleSheet.create({
     paddingTop: CONTENT_PADDING_TOP,
     paddingHorizontal: CONTENT_PADDING_H,
   },
-  overlay: {
-    ...StyleSheet.absoluteFill,
+  statusScreen: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
     paddingHorizontal: 32,
+    gap: 8,
   },
-  overlayText: { textAlign: "center", marginTop: 4 },
-  overlayBtn: { marginTop: 12, minWidth: 110 },
-  overlayUrl: {
+  statusTitle: {
+    textAlign: "center",
     marginTop: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    fontFamily: "monospace",
+  },
+  statusMessage: {
     textAlign: "center",
   },
-  overlayActions: {
+  statusBtn: { marginTop: 8 },
+  statusActions: {
     flexDirection: "row",
     gap: 12,
-    marginTop: 16,
+    marginTop: 8,
   },
   floatingHeader: {
     position: "absolute",
