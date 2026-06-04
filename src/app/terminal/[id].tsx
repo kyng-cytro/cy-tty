@@ -99,12 +99,15 @@ function StatusScreen({
   const theme = useTheme();
   const { status, error, pendingAuthUrl, approveAuth, denyAuth } =
     useTerminalSessionContext();
-
   const domain =
     pendingAuthUrl?.match(/https?:\/\/([^/]+)/)?.[1] ?? pendingAuthUrl;
-
   return (
-    <View style={styles.statusScreen}>
+    <View
+      style={[
+        styles.statusScreen,
+        { backgroundColor: theme.colors.background },
+      ]}
+    >
       {status === "connecting" && pendingAuthUrl && (
         <>
           <MaterialCommunityIcons
@@ -145,7 +148,6 @@ function StatusScreen({
           </View>
         </>
       )}
-
       {status === "connecting" && !pendingAuthUrl && (
         <>
           <MaterialCommunityIcons
@@ -296,9 +298,7 @@ export default function TerminalScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { get, destroy } = useSessionManager();
   const { setFontSize, fontSize, resolvedTheme } = useTerminalPreferences();
-
   const session = get(id ?? "");
-
   const [scrollOffset, setScrollOffset] = useState(0);
   const scrollOffsetRef = useRef(0);
   const scrollDrag = useSharedValue(0);
@@ -349,9 +349,11 @@ export default function TerminalScreen() {
   }, [destroy, id]);
 
   useEffect(() => {
-    const t = setTimeout(() => setKeyboardFocused(true), 350);
-    return () => clearTimeout(t);
-  }, []);
+    if (session?.status === "connected") {
+      const t = setTimeout(() => setKeyboardFocused(true), 350);
+      return () => clearTimeout(t);
+    }
+  }, [session?.status]);
 
   useEffect(() => {
     const sub = Keyboard.addListener("keyboardDidHide", () =>
