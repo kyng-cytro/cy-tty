@@ -172,21 +172,15 @@ src/
 
 ---
 
-## Known bugs
-
-- **`connection-sheet.tsx` not resetting** — form fields (host, username, password, etc.) retain stale values after the sheet is dismissed or a profile is saved. The fix is to call the form reset inside the sheet's `onDismiss` handler (and after a successful save), clearing all controlled state back to defaults.
-
----
-
 ## Onboarding screen
 
 A one-time paginated intro shown to new users before they reach the main tabs.
 
-- **Route:** `src/app/onboarding.tsx` (or a `(onboarding)/` group)
-- **Structure:** step screens with an image/illustration + headline + short body copy; swipeable (paging `FlatList` or `react-native-reanimated` carousel)
-- **Steps (draft):** Connect to any SSH server · Multiple live sessions · Secure encrypted storage · Browser-based auth (Tailscale etc.)
-- **CTA:** "Get Started" on the final step → set `hasOnboarded: true` in `AsyncStorage` → `router.replace('/(tabs)')`
-- **Gate:** `_layout.tsx` checks `hasOnboarded` on mount; redirects unauthenticated users to `/onboarding` before tabs render
+- **Route:** `src/app/onboarding.tsx`
+- **Structure:** paginated `FlatList` with step screens (image/illustration + headline + body copy)
+- **Steps:** Connect to any SSH server · Multiple live sessions · Secure encrypted storage · Browser-based auth (Tailscale etc.)
+- **CTA:** "Get Started" on the final step → sets `hasOnboarded: true` in `AsyncStorage` → `router.replace('/(tabs)')`
+- **Gate:** `_layout.tsx` checks `hasOnboarded` on mount; redirects new users to `/onboarding` before tabs render
 
 ---
 

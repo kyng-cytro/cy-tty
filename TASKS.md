@@ -167,17 +167,16 @@
 
 ## 🐛 Known Bugs
 
-- [ ] `connection-sheet.tsx` — form fields don't reset after saving/closing; need to clear state on dismiss
+- [x] `connection-sheet.tsx` — form fields don't reset after saving/closing (`resetKey` increment on open + `useEffect` prefill)
 
 ---
 
 ## 🚀 Onboarding
 
-- [ ] Design onboarding flow: step screens with images/illustrations covering key features (multi-session, terminal, device lock, URL auth)
-- [ ] Build `src/app/onboarding.tsx` — paginated step screen (e.g. `FlatList` with `pagingEnabled` or a swipeable view)
-- [ ] Add "Get Started" CTA on final step → navigate to main app and persist `hasOnboarded` flag
-- [ ] Gate onboarding: check `hasOnboarded` in `_layout.tsx`; redirect new users before tabs render
-- [ ] Source / create images or illustrations for each step
+- [x] Design onboarding flow: step screens with images/illustrations covering key features (multi-session, terminal, device lock, URL auth)
+- [x] Build `src/app/onboarding.tsx` — paginated `FlatList` step screen
+- [x] Add "Get Started" CTA on final step → navigate to main app and persist `hasOnboarded` flag
+- [x] Gate onboarding: check `hasOnboarded` in `_layout.tsx`; redirect new users before tabs render
 
 ---
 
