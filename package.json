@@ -7,7 +7,11 @@
     "lint": "expo lint",
     "start": "expo start",
     "ios": "expo run:ios",
-    "android": "expo run:android"
+    "android": "expo run:android",
+    "prebuild": "expo prebuild --platform android --clean",
+    "eas:preview": "eas build --platform android --profile preview",
+    "eas:production": "eas build --platform android --profile production",
+    "eas:production-apk": "eas build --platform android --profile production-apk"
   },
   "trustedDependencies": [
     "@shopify/react-native-skia"
